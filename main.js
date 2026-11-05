@@ -27,42 +27,306 @@ __export(main_exports, {
   default: () => WebviewTextSelectorPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian = require("obsidian");
-var WEBVIEWER_VIEW_TYPE = "webviewer";
-var COPY_MARKER = "[[WEBVIEW_TEXT_SELECTOR_COPY]]";
-var MAX_TEXT_CHARS = 2e5;
-var MENU_ITEM_LABEL = "Inserir cita\xE7\xE3o na nota";
-var WEB_COPY_EVENT = "webview-text-selector:web-copy";
-function safeString(value) {
+var import_obsidian2 = require("obsidian");
+
+// src/shared/text.ts
+function asString(value) {
   return typeof value === "string" ? value : "";
 }
-function normalizeForCompare(value) {
+function normalizeForComparison(value) {
   return value.replace(/\u00a0/g, " ").replace(/[\u200b-\u200d\ufeff]/g, "").replace(/\s+/g, " ").trim();
 }
-function sameText(left, right) {
-  const normalizedLeft = normalizeForCompare(left);
-  const normalizedRight = normalizeForCompare(right);
+function isSameText(left, right) {
+  const normalizedLeft = normalizeForComparison(left);
+  const normalizedRight = normalizeForComparison(right);
   if (!normalizedLeft || !normalizedRight)
     return false;
   if (normalizedLeft === normalizedRight)
     return true;
   return normalizedLeft.replace(/\s/g, "") === normalizedRight.replace(/\s/g, "");
 }
-function formatCitation(copy) {
-  const text = safeString(copy.text).replace(/\u00a0/g, " ").replace(/\r\n?/g, "\n").trim();
-  const lines = text.length > 0 ? text.split("\n") : [""];
-  const quoted = lines.map((line) => {
-    const trimmed = line.replace(/[ \t]+$/g, "");
-    return trimmed.trim().length > 0 ? `> ${trimmed}` : ">";
-  }).join("\n");
-  const url = safeString(copy.url).trim().replace(/[\r\n]+/g, "");
-  const rawTitle = (safeString(copy.title).trim() || url || "Fonte").replace(/\s+/g, " ").trim();
-  const safeTitle = rawTitle.replace(/([\\[\]])/g, "\\$1");
-  const source = url ? `[${safeTitle}](<${url}>)` : safeTitle;
-  return `${quoted}
+
+// src/citation/CitationFormatter.ts
+var CitationFormatter = class {
+  /**
+   * Converte uma captura do Web viewer em um bloco de citação.
+   *
+   * @param copy Captura a formatar.
+   * @returns Bloco Markdown pronto para ser inserido na nota.
+   */
+  format(copy) {
+    const text = this.normalizeText(copy.text);
+    const quoted = text.split("\n").map((line) => this.quoteLine(line)).join("\n");
+    return `${quoted}
 >
-> ${source}`;
-}
+> ${this.formatSource(copy)}`;
+  }
+  /**
+   * Padroniza quebras de linha e remove espaços nas extremidades.
+   *
+   * @param text Texto original da seleção.
+   */
+  normalizeText(text) {
+    return asString(text).replace(/\u00a0/g, " ").replace(/\r\n?/g, "\n").trim();
+  }
+  /**
+   * Aplica o marcador de citação em uma linha.
+   *
+   * Linhas vazias viram `>` para preservar os parágrafos do texto original.
+   *
+   * @param line Linha original.
+   */
+  quoteLine(line) {
+    const withoutTrailingSpaces = line.replace(/[ \t]+$/g, "");
+    return withoutTrailingSpaces.trim().length > 0 ? `> ${withoutTrailingSpaces}` : ">";
+  }
+  /**
+   * Monta o rodapé com o título e o link da página.
+   *
+   * @param copy Captura de origem.
+   */
+  formatSource(copy) {
+    const url = asString(copy.url).trim().replace(/[\r\n]+/g, "");
+    const rawTitle = (asString(copy.title).trim() || url || "Fonte").replace(/\s+/g, " ").trim();
+    const safeTitle = rawTitle.replace(/([\\[\]])/g, "\\$1");
+    return url ? `[${safeTitle}](<${url}>)` : safeTitle;
+  }
+};
+
+// src/citation/CitationInserter.ts
+var import_obsidian = require("obsidian");
+var CitationInserter = class {
+  /**
+   * @param app Aplicativo do Obsidian.
+   * @param formatter Responsável por montar o bloco Markdown.
+   * @param notify Função de aviso; pode ser substituída em testes.
+   */
+  constructor(app, formatter, notify = (message) => new import_obsidian.Notice(message)) {
+    this.app = app;
+    this.formatter = formatter;
+    this.notify = notify;
+    this.lastMarkdownView = null;
+  }
+  /**
+   * Lembra a nota quando uma leaf Markdown passa a ser a ativa.
+   *
+   * @param leaf Leaf que recebeu o foco.
+   */
+  trackLeaf(leaf) {
+    if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian.MarkdownView) {
+      this.lastMarkdownView = leaf.view;
+    }
+  }
+  /** Registra a nota Markdown ativa no momento da inicialização. */
+  trackActiveView() {
+    const markdown = this.app.workspace.getActiveViewOfType(
+      import_obsidian.MarkdownView
+    );
+    if (markdown)
+      this.lastMarkdownView = markdown;
+  }
+  /**
+   * Insere uma citação na nota de destino.
+   *
+   * @param copy Captura do Web viewer a citar.
+   * @param editor Editor de destino. Quando omitido, usa a última nota ativa.
+   * @param noteName Nome da nota para a mensagem de confirmação.
+   */
+  insert(copy, editor, noteName) {
+    const target = editor != null ? editor : this.resolveTargetEditor();
+    if (!target) {
+      this.notify(
+        "Abra uma nota em Markdown para inserir a cita\xE7\xE3o."
+      );
+      return;
+    }
+    const citation = this.formatter.format(copy);
+    try {
+      target.replaceSelection(
+        this.withSurroundingBreaks(target, citation)
+      );
+      const targetName = noteName != null ? noteName : this.getTargetNoteName();
+      this.notify(
+        targetName ? `Cita\xE7\xE3o inserida em "${targetName}".` : "Cita\xE7\xE3o inserida na nota."
+      );
+    } catch (error) {
+      console.error(
+        "Webview Text Selector: falha ao inserir cita\xE7\xE3o",
+        error
+      );
+      this.notify("N\xE3o foi poss\xEDvel inserir a cita\xE7\xE3o na nota.");
+    }
+  }
+  /**
+   * Encontra o editor da nota ativa ou da última nota Markdown lembrada.
+   *
+   * A leaf é validada para evitar usar uma view que já foi fechada.
+   */
+  resolveTargetEditor() {
+    const active = this.app.workspace.getActiveViewOfType(
+      import_obsidian.MarkdownView
+    );
+    if (active)
+      return active.editor;
+    const last = this.lastMarkdownView;
+    if (!last)
+      return null;
+    const leaves = this.app.workspace.getLeavesOfType("markdown");
+    if (!leaves.some((leaf) => leaf.view === last))
+      return null;
+    try {
+      return last.editor;
+    } catch (e) {
+      return null;
+    }
+  }
+  /** Retorna o nome da nota de destino, quando disponível. */
+  getTargetNoteName() {
+    var _a;
+    const active = this.app.workspace.getActiveViewOfType(
+      import_obsidian.MarkdownView
+    );
+    const target = active != null ? active : this.lastMarkdownView;
+    return (_a = target == null ? void 0 : target.file) == null ? void 0 : _a.basename;
+  }
+  /**
+   * Garante que o bloco de citação comece e termine em linhas próprias
+   * quando o cursor está no meio de um parágrafo.
+   *
+   * @param editor Editor que receberá a citação.
+   * @param citation Bloco já formatado.
+   */
+  withSurroundingBreaks(editor, citation) {
+    var _a;
+    let prefix = "";
+    let suffix = "";
+    try {
+      const cursor = editor.getCursor();
+      const line = (_a = editor.getLine(cursor.line)) != null ? _a : "";
+      if (line.slice(0, cursor.ch).trim().length > 0)
+        prefix = "\n\n";
+      if (line.slice(cursor.ch).trim().length > 0)
+        suffix = "\n\n";
+    } catch (e) {
+    }
+    return prefix + citation + suffix;
+  }
+};
+
+// src/citation/PasteInterceptor.ts
+var PasteInterceptor = class {
+  /**
+   * @param store Armazenamento da última cópia do Web viewer.
+   * @param inserter Serviço que insere a citação na nota.
+   */
+  constructor(store, inserter) {
+    this.store = store;
+    this.inserter = inserter;
+  }
+  /**
+   * Trata o evento `editor-paste` do Obsidian.
+   *
+   * Quando o texto colado corresponde à captura do Web viewer, o
+   * comportamento padrão é cancelado e a citação formatada é inserida.
+   *
+   * @param event Evento de colagem do editor.
+   * @param editor Editor que receberá o conteúdo.
+   * @param info Informações da nota de destino.
+   */
+  handle(event, editor, info) {
+    var _a, _b;
+    if (event.defaultPrevented)
+      return;
+    const copy = this.store.getCurrent();
+    if (!copy)
+      return;
+    const clipboardText = asString(
+      (_a = event.clipboardData) == null ? void 0 : _a.getData("text/plain")
+    );
+    if (!clipboardText.trim())
+      return;
+    if (!isSameText(clipboardText, copy.text))
+      return;
+    event.preventDefault();
+    const noteName = (_b = info == null ? void 0 : info.file) == null ? void 0 : _b.basename;
+    this.inserter.insert(copy, editor, noteName);
+  }
+};
+
+// src/citation/WebCopy.ts
+var WebCopy = class {
+  /**
+   * @param text Texto selecionado na página.
+   * @param url URL da página no momento da cópia.
+   * @param title Título da página no momento da cópia.
+   * @param capturedAt Momento da captura em milissegundos.
+   */
+  constructor(text, url, title, capturedAt = Date.now()) {
+    this.text = text;
+    this.url = url;
+    this.title = title;
+    this.capturedAt = capturedAt;
+  }
+  /** Indica se a captura possui texto utilizável. */
+  hasText() {
+    return this.text.trim().length > 0;
+  }
+};
+
+// src/citation/WebCopyStore.ts
+var WebCopyStore = class {
+  constructor() {
+    this.current = null;
+    this.rememberListeners = /* @__PURE__ */ new Set();
+  }
+  /**
+   * Retorna a última cópia registrada.
+   *
+   * @returns A cópia mais recente ou `null` quando não há nenhuma.
+   */
+  getCurrent() {
+    return this.current;
+  }
+  /**
+   * Registra uma nova cópia e avisa os interessados.
+   *
+   * Capturas sem texto visível são ignoradas para não apagar uma cópia válida
+   * com uma seleção vazia acidental.
+   *
+   * @param copy Cópia a registrar.
+   */
+  remember(copy) {
+    if (!copy.hasText())
+      return;
+    this.current = copy;
+    for (const listener of this.rememberListeners) {
+      listener(copy);
+    }
+  }
+  /** Descarta a cópia atual. */
+  clear() {
+    this.current = null;
+  }
+  /**
+   * Registra um observador para novas cópias.
+   *
+   * @param listener Função chamada sempre que uma cópia válida é registrada.
+   * @returns Função para cancelar a inscrição.
+   */
+  onRemember(listener) {
+    this.rememberListeners.add(listener);
+    return () => {
+      this.rememberListeners.delete(listener);
+    };
+  }
+};
+
+// src/main.ts
+var WEBVIEWER_VIEW_TYPE = "webviewer";
+var COPY_MARKER = "[[WEBVIEW_TEXT_SELECTOR_COPY]]";
+var MAX_TEXT_CHARS = 2e5;
+var MENU_ITEM_LABEL = "Inserir cita\xE7\xE3o na nota";
+var WEB_COPY_EVENT = "webview-text-selector:web-copy";
 function pageBridge(marker, maxChars) {
   const win = window;
   if (win.__wvsCiteBridgeInstalled)
@@ -118,11 +382,19 @@ function pageBridge(marker, maxChars) {
     true
   );
 }
-var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
+var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
   constructor() {
     super(...arguments);
-    this.lastWebCopy = null;
-    this.lastMarkdownView = null;
+    this.copyStore = new WebCopyStore();
+    this.formatter = new CitationFormatter();
+    this.inserter = new CitationInserter(
+      this.app,
+      this.formatter
+    );
+    this.pasteInterceptor = new PasteInterceptor(
+      this.copyStore,
+      this.inserter
+    );
     this.lastWebviewerView = null;
     this.active = true;
     this.observer = null;
@@ -134,7 +406,7 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
   async onload() {
     this.registerEvent(
       this.app.workspace.on("editor-paste", (evt, editor, info) => {
-        this.handleEditorPaste(evt, editor, info);
+        this.pasteInterceptor.handle(evt, editor, info);
       })
     );
     this.registerEvent(
@@ -160,7 +432,7 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
       document,
       "cut",
       () => {
-        this.lastWebCopy = null;
+        this.copyStore.clear();
       },
       true
     );
@@ -177,7 +449,8 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
       }
     });
     this.app.workspace.onLayoutReady(() => {
-      this.trackActiveView();
+      this.inserter.trackActiveView();
+      this.trackLeaf(this.app.workspace.activeLeaf);
       this.scanWebviewers();
       this.observeWebviews();
     });
@@ -206,22 +479,13 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
   // Captura no Web viewer nativo
   // ---------------------------------------------------------------------
   trackLeaf(leaf) {
+    var _a;
     if (!leaf)
       return;
-    const view = leaf.view;
-    if (view instanceof import_obsidian.MarkdownView) {
-      this.lastMarkdownView = view;
-      return;
+    this.inserter.trackLeaf(leaf);
+    if (((_a = leaf.view) == null ? void 0 : _a.getViewType()) === WEBVIEWER_VIEW_TYPE) {
+      this.lastWebviewerView = leaf.view;
     }
-    if (view && view.getViewType() === WEBVIEWER_VIEW_TYPE) {
-      this.lastWebviewerView = view;
-    }
-  }
-  trackActiveView() {
-    const markdown = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
-    if (markdown)
-      this.lastMarkdownView = markdown;
-    this.trackLeaf(this.app.workspace.activeLeaf);
   }
   observeWebviews() {
     if (this.observer || !document.body)
@@ -354,15 +618,17 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
       const data = JSON.parse(
         message.slice(index + COPY_MARKER.length)
       );
-      const text = safeString(data.text);
+      const text = asString(data.text);
       if (!text.trim())
         return;
-      this.rememberWebCopy({
-        text: text.slice(0, MAX_TEXT_CHARS),
-        url: safeString(data.url),
-        title: safeString(data.title),
-        at: Date.now()
-      });
+      this.rememberWebCopy(
+        new WebCopy(
+          text.slice(0, MAX_TEXT_CHARS),
+          asString(data.url),
+          asString(data.title),
+          Date.now()
+        )
+      );
     } catch (e) {
     }
   }
@@ -373,12 +639,12 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
     const activeView = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
     const isReaderWebviewer = (activeView == null ? void 0 : activeView.getViewType()) === WEBVIEWER_VIEW_TYPE && activeView.mode === "reader";
     if (!isReaderWebviewer) {
-      this.lastWebCopy = null;
+      this.copyStore.clear();
       return;
     }
     const text = (_c = (_b = document.getSelection()) == null ? void 0 : _b.toString()) != null ? _c : "";
     if (!text.trim()) {
-      this.lastWebCopy = null;
+      this.copyStore.clear();
       return;
     }
     this.rememberWebCopy(
@@ -389,16 +655,16 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
     );
   }
   rememberWebCopy(copy) {
-    if (!copy.text.trim())
+    if (!copy.hasText())
       return;
-    this.lastWebCopy = copy;
+    this.copyStore.remember(copy);
     this.app.workspace.trigger(WEB_COPY_EVENT, copy);
   }
   // ---------------------------------------------------------------------
   // Menu de contexto do Web viewer
   // ---------------------------------------------------------------------
   decorateContextMenu(view, items, selectionText) {
-    const text = safeString(selectionText);
+    const text = asString(selectionText);
     if (!text.trim())
       return items;
     const copy = this.webCopyFromView(view, text);
@@ -426,7 +692,7 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
       label: MENU_ITEM_LABEL,
       click: () => {
         this.rememberWebCopy(copy);
-        this.insertCitation(copy);
+        this.inserter.insert(copy);
       }
     };
     items.splice(
@@ -442,100 +708,27 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
     let url = "";
     let title = "";
     try {
-      url = safeString((_a = webview == null ? void 0 : webview.getURL) == null ? void 0 : _a.call(webview));
+      url = asString((_a = webview == null ? void 0 : webview.getURL) == null ? void 0 : _a.call(webview));
     } catch (e) {
     }
     if (!url)
-      url = safeString(view.url);
+      url = asString(view.url);
     try {
-      title = safeString((_b = webview == null ? void 0 : webview.getTitle) == null ? void 0 : _b.call(webview));
+      title = asString((_b = webview == null ? void 0 : webview.getTitle) == null ? void 0 : _b.call(webview));
     } catch (e) {
     }
     if (!title)
-      title = safeString(view.title);
-    return {
-      text: text.slice(0, MAX_TEXT_CHARS),
-      url: url.trim(),
-      title: title.trim() || url.trim(),
-      at: Date.now()
-    };
+      title = asString(view.title);
+    return new WebCopy(
+      text.slice(0, MAX_TEXT_CHARS),
+      url.trim(),
+      title.trim() || url.trim(),
+      Date.now()
+    );
   }
   // ---------------------------------------------------------------------
   // Colagem na nota
   // ---------------------------------------------------------------------
-  handleEditorPaste(evt, editor, info) {
-    var _a, _b, _c;
-    if (!this.active || evt.defaultPrevented)
-      return;
-    const copy = this.lastWebCopy;
-    if (!copy)
-      return;
-    const clipboardText = (_b = (_a = evt.clipboardData) == null ? void 0 : _a.getData("text/plain")) != null ? _b : "";
-    if (!clipboardText.trim())
-      return;
-    if (!sameText(clipboardText, copy.text))
-      return;
-    evt.preventDefault();
-    const noteName = (_c = info == null ? void 0 : info.file) == null ? void 0 : _c.basename;
-    this.insertCitation(copy, editor, noteName);
-  }
-  insertCitation(copy, editor, noteName) {
-    const target = editor != null ? editor : this.getTargetEditor();
-    if (!target) {
-      new import_obsidian.Notice(
-        "Abra uma nota em Markdown para inserir a cita\xE7\xE3o."
-      );
-      return;
-    }
-    const citation = formatCitation(copy);
-    try {
-      target.replaceSelection(this.withSurroundingBreaks(target, citation));
-      new import_obsidian.Notice(
-        noteName ? `Cita\xE7\xE3o inserida em "${noteName}".` : "Cita\xE7\xE3o inserida na nota."
-      );
-    } catch (error) {
-      console.error(
-        "Webview Text Selector: falha ao inserir cita\xE7\xE3o",
-        error
-      );
-      new import_obsidian.Notice("N\xE3o foi poss\xEDvel inserir a cita\xE7\xE3o na nota.");
-    }
-  }
-  /**
-   * Garante que o bloco de citação comece e termine em linhas próprias
-   * quando o cursor está no meio de um parágrafo.
-   */
-  withSurroundingBreaks(editor, citation) {
-    var _a;
-    let prefix = "";
-    let suffix = "";
-    try {
-      const cursor = editor.getCursor();
-      const line = (_a = editor.getLine(cursor.line)) != null ? _a : "";
-      if (line.slice(0, cursor.ch).trim().length > 0)
-        prefix = "\n\n";
-      if (line.slice(cursor.ch).trim().length > 0)
-        suffix = "\n\n";
-    } catch (e) {
-    }
-    return prefix + citation + suffix;
-  }
-  getTargetEditor() {
-    const active = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
-    if (active)
-      return active.editor;
-    const last = this.lastMarkdownView;
-    if (!last)
-      return null;
-    const leaves = this.app.workspace.getLeavesOfType("markdown");
-    if (!leaves.some((leaf) => leaf.view === last))
-      return null;
-    try {
-      return last.editor;
-    } catch (e) {
-      return null;
-    }
-  }
   getWebviewerView() {
     var _a;
     const active = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
@@ -559,7 +752,9 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
     var _a, _b;
     const view = this.getWebviewerView();
     if (!view) {
-      new import_obsidian.Notice("Abra uma p\xE1gina no Web viewer nativo.");
+      new import_obsidian2.Notice(
+        "Abra uma p\xE1gina no Web viewer nativo."
+      );
       return;
     }
     let text = "";
@@ -568,7 +763,9 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
     } else {
       const webview = view.webview;
       if (!(webview == null ? void 0 : webview.executeJavaScript)) {
-        new import_obsidian.Notice("O Web viewer ainda n\xE3o terminou de carregar.");
+        new import_obsidian2.Notice(
+          "O Web viewer ainda n\xE3o terminou de carregar."
+        );
         return;
       }
       try {
@@ -576,7 +773,7 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
           "window.getSelection().toString()",
           true
         );
-        text = safeString(result);
+        text = asString(result);
       } catch (error) {
         console.error(
           "Webview Text Selector: falha ao ler a sele\xE7\xE3o",
@@ -585,11 +782,13 @@ var WebviewTextSelectorPlugin = class extends import_obsidian.Plugin {
       }
     }
     if (!text.trim()) {
-      new import_obsidian.Notice("Selecione um texto no Web viewer nativo.");
+      new import_obsidian2.Notice(
+        "Selecione um texto no Web viewer nativo."
+      );
       return;
     }
     const copy = this.webCopyFromView(view, text);
     this.rememberWebCopy(copy);
-    this.insertCitation(copy);
+    this.inserter.insert(copy);
   }
 };

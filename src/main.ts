@@ -1,16 +1,16 @@
-import {
-  Editor,
-  MarkdownView,
-  Notice,
-  Plugin,
-  WorkspaceLeaf,
-} from "obsidian";
+import { Notice, Plugin } from "obsidian";
+import type { WorkspaceLeaf } from "obsidian";
+import { CitationFormatter } from "./citation/CitationFormatter";
+import { CitationInserter } from "./citation/CitationInserter";
+import { PasteInterceptor } from "./citation/PasteInterceptor";
+import { WebCopy } from "./citation/WebCopy";
+import { WebCopyStore } from "./citation/WebCopyStore";
+import { asString } from "./shared/text";
 import type {
   MenuItemLike,
-  WebCopy,
   WebviewElementLike,
   WebviewerViewLike,
-} from "./types";
+} from "./shared/types";
 
 /** Tipo interno da view do Web viewer nativo do Obsidian. */
 const WEBVIEWER_VIEW_TYPE = "webviewer";
@@ -31,61 +31,6 @@ const MENU_ITEM_LABEL = "Inserir citação na nota";
 
 /** Evento opcional para integrações com outros plugins. */
 const WEB_COPY_EVENT = "webview-text-selector:web-copy";
-
-function safeString(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-/**
- * Normaliza diferenças de espaço em branco entre `window.getSelection()`
- * e o `text/plain` colocado na área de transferência pelo Chromium.
- */
-function normalizeForCompare(value: string): string {
-  return value
-    .replace(/\u00a0/g, " ")
-    .replace(/[\u200b-\u200d\ufeff]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function sameText(left: string, right: string): boolean {
-  const normalizedLeft = normalizeForCompare(left);
-  const normalizedRight = normalizeForCompare(right);
-  if (!normalizedLeft || !normalizedRight) return false;
-  if (normalizedLeft === normalizedRight) return true;
-
-  // Segunda tentativa: ignora também as quebras de linha/espaços que o
-  // Chromium pode inserir entre blocos ao montar o text/plain.
-  return (
-    normalizedLeft.replace(/\s/g, "") ===
-    normalizedRight.replace(/\s/g, "")
-  );
-}
-
-/** Monta o bloco de citação. O rodapé contém apenas o link formatado. */
-function formatCitation(copy: WebCopy): string {
-  const text = safeString(copy.text)
-    .replace(/\u00a0/g, " ")
-    .replace(/\r\n?/g, "\n")
-    .trim();
-
-  const lines = text.length > 0 ? text.split("\n") : [""];
-  const quoted = lines
-    .map((line) => {
-      const trimmed = line.replace(/[ \t]+$/g, "");
-      return trimmed.trim().length > 0 ? `> ${trimmed}` : ">";
-    })
-    .join("\n");
-
-  const url = safeString(copy.url).trim().replace(/[\r\n]+/g, "");
-  const rawTitle = (safeString(copy.title).trim() || url || "Fonte")
-    .replace(/\s+/g, " ")
-    .trim();
-  const safeTitle = rawTitle.replace(/([\\[\]])/g, "\\$1");
-  const source = url ? `[${safeTitle}](<${url}>)` : safeTitle;
-
-  return `${quoted}\n>\n> ${source}`;
-}
 
 /**
  * Script injetado dentro da página carregada no Web viewer nativo.
@@ -180,8 +125,17 @@ function pageBridge(marker: string, maxChars: number): void {
 }
 
 export default class WebviewTextSelectorPlugin extends Plugin {
-  private lastWebCopy: WebCopy | null = null;
-  private lastMarkdownView: MarkdownView | null = null;
+  private readonly copyStore = new WebCopyStore();
+  private readonly formatter = new CitationFormatter();
+  private readonly inserter = new CitationInserter(
+    this.app,
+    this.formatter
+  );
+  private readonly pasteInterceptor = new PasteInterceptor(
+    this.copyStore,
+    this.inserter
+  );
+
   private lastWebviewerView: WebviewerViewLike | null = null;
 
   private active = true;
@@ -196,7 +150,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
   async onload(): Promise<void> {
     this.registerEvent(
       this.app.workspace.on("editor-paste", (evt, editor, info) => {
-        this.handleEditorPaste(evt, editor, info);
+        this.pasteInterceptor.handle(evt, editor, info);
       })
     );
 
@@ -229,7 +183,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
       document,
       "cut",
       () => {
-        this.lastWebCopy = null;
+        this.copyStore.clear();
       },
       true
     );
@@ -246,7 +200,8 @@ export default class WebviewTextSelectorPlugin extends Plugin {
     });
 
     this.app.workspace.onLayoutReady(() => {
-      this.trackActiveView();
+      this.inserter.trackActiveView();
+      this.trackLeaf(this.app.workspace.activeLeaf);
       this.scanWebviewers();
       this.observeWebviews();
     });
@@ -283,22 +238,12 @@ export default class WebviewTextSelectorPlugin extends Plugin {
 
   private trackLeaf(leaf: WorkspaceLeaf | null): void {
     if (!leaf) return;
-    const view = leaf.view;
 
-    if (view instanceof MarkdownView) {
-      this.lastMarkdownView = view;
-      return;
+    this.inserter.trackLeaf(leaf);
+
+    if (leaf.view?.getViewType() === WEBVIEWER_VIEW_TYPE) {
+      this.lastWebviewerView = leaf.view as unknown as WebviewerViewLike;
     }
-
-    if (view && view.getViewType() === WEBVIEWER_VIEW_TYPE) {
-      this.lastWebviewerView = view as unknown as WebviewerViewLike;
-    }
-  }
-
-  private trackActiveView(): void {
-    const markdown = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (markdown) this.lastMarkdownView = markdown;
-    this.trackLeaf(this.app.workspace.activeLeaf);
   }
 
   private observeWebviews(): void {
@@ -474,15 +419,17 @@ export default class WebviewTextSelectorPlugin extends Plugin {
         title?: unknown;
       };
 
-      const text = safeString(data.text);
+      const text = asString(data.text);
       if (!text.trim()) return;
 
-      this.rememberWebCopy({
-        text: text.slice(0, MAX_TEXT_CHARS),
-        url: safeString(data.url),
-        title: safeString(data.title),
-        at: Date.now(),
-      });
+      this.rememberWebCopy(
+        new WebCopy(
+          text.slice(0, MAX_TEXT_CHARS),
+          asString(data.url),
+          asString(data.title),
+          Date.now()
+        )
+      );
     } catch {
       // Mensagem de console não relacionada ou payload inválido.
     }
@@ -497,13 +444,13 @@ export default class WebviewTextSelectorPlugin extends Plugin {
       (activeView as unknown as WebviewerViewLike).mode === "reader";
 
     if (!isReaderWebviewer) {
-      this.lastWebCopy = null;
+      this.copyStore.clear();
       return;
     }
 
     const text = document.getSelection()?.toString() ?? "";
     if (!text.trim()) {
-      this.lastWebCopy = null;
+      this.copyStore.clear();
       return;
     }
 
@@ -516,8 +463,9 @@ export default class WebviewTextSelectorPlugin extends Plugin {
   }
 
   private rememberWebCopy(copy: WebCopy): void {
-    if (!copy.text.trim()) return;
-    this.lastWebCopy = copy;
+    if (!copy.hasText()) return;
+
+    this.copyStore.remember(copy);
     this.app.workspace.trigger(WEB_COPY_EVENT, copy);
   }
 
@@ -530,7 +478,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
     items: MenuItemLike[],
     selectionText: string
   ): MenuItemLike[] {
-    const text = safeString(selectionText);
+    const text = asString(selectionText);
     if (!text.trim()) return items;
 
     const copy = this.webCopyFromView(view, text);
@@ -561,7 +509,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
       label: MENU_ITEM_LABEL,
       click: () => {
         this.rememberWebCopy(copy);
-        this.insertCitation(copy);
+        this.inserter.insert(copy);
       },
     };
 
@@ -584,128 +532,32 @@ export default class WebviewTextSelectorPlugin extends Plugin {
     let title = "";
 
     try {
-      url = safeString(webview?.getURL?.());
+      url = asString(webview?.getURL?.());
     } catch {
       // Webview destruída durante a leitura.
     }
 
-    if (!url) url = safeString(view.url);
+    if (!url) url = asString(view.url);
 
     try {
-      title = safeString(webview?.getTitle?.());
+      title = asString(webview?.getTitle?.());
     } catch {
       // Webview destruída durante a leitura.
     }
 
-    if (!title) title = safeString(view.title);
+    if (!title) title = asString(view.title);
 
-    return {
-      text: text.slice(0, MAX_TEXT_CHARS),
-      url: url.trim(),
-      title: title.trim() || url.trim(),
-      at: Date.now(),
-    };
+    return new WebCopy(
+      text.slice(0, MAX_TEXT_CHARS),
+      url.trim(),
+      title.trim() || url.trim(),
+      Date.now()
+    );
   }
 
   // ---------------------------------------------------------------------
   // Colagem na nota
   // ---------------------------------------------------------------------
-
-  private handleEditorPaste(
-    evt: ClipboardEvent,
-    editor: Editor,
-    info: unknown
-  ): void {
-    if (!this.active || evt.defaultPrevented) return;
-
-    const copy = this.lastWebCopy;
-    if (!copy) return;
-
-    const clipboardText =
-      evt.clipboardData?.getData("text/plain") ?? "";
-    if (!clipboardText.trim()) return;
-    if (!sameText(clipboardText, copy.text)) return;
-
-    evt.preventDefault();
-
-    const noteName = (
-      info as { file?: { basename?: string } | null } | null
-    )?.file?.basename;
-
-    this.insertCitation(copy, editor, noteName);
-  }
-
-  private insertCitation(
-    copy: WebCopy,
-    editor?: Editor,
-    noteName?: string
-  ): void {
-    const target = editor ?? this.getTargetEditor();
-    if (!target) {
-      new Notice(
-        "Abra uma nota em Markdown para inserir a citação."
-      );
-      return;
-    }
-
-    const citation = formatCitation(copy);
-
-    try {
-      target.replaceSelection(this.withSurroundingBreaks(target, citation));
-      new Notice(
-        noteName
-          ? `Citação inserida em "${noteName}".`
-          : "Citação inserida na nota."
-      );
-    } catch (error) {
-      console.error(
-        "Webview Text Selector: falha ao inserir citação",
-        error
-      );
-      new Notice("Não foi possível inserir a citação na nota.");
-    }
-  }
-
-  /**
-   * Garante que o bloco de citação comece e termine em linhas próprias
-   * quando o cursor está no meio de um parágrafo.
-   */
-  private withSurroundingBreaks(
-    editor: Editor,
-    citation: string
-  ): string {
-    let prefix = "";
-    let suffix = "";
-
-    try {
-      const cursor = editor.getCursor();
-      const line = editor.getLine(cursor.line) ?? "";
-
-      if (line.slice(0, cursor.ch).trim().length > 0) prefix = "\n\n";
-      if (line.slice(cursor.ch).trim().length > 0) suffix = "\n\n";
-    } catch {
-      // Alguns editores não expõem getCursor/getLine; insere direto.
-    }
-
-    return prefix + citation + suffix;
-  }
-
-  private getTargetEditor(): Editor | null {
-    const active = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (active) return active.editor;
-
-    const last = this.lastMarkdownView;
-    if (!last) return null;
-
-    const leaves = this.app.workspace.getLeavesOfType("markdown");
-    if (!leaves.some((leaf) => leaf.view === last)) return null;
-
-    try {
-      return last.editor;
-    } catch {
-      return null;
-    }
-  }
 
   private getWebviewerView(): WebviewerViewLike | null {
     const active = this.app.workspace.activeLeaf?.view;
@@ -734,7 +586,9 @@ export default class WebviewTextSelectorPlugin extends Plugin {
   private async citeCurrentSelection(): Promise<void> {
     const view = this.getWebviewerView();
     if (!view) {
-      new Notice("Abra uma página no Web viewer nativo.");
+      new Notice(
+        "Abra uma página no Web viewer nativo."
+      );
       return;
     }
 
@@ -745,7 +599,9 @@ export default class WebviewTextSelectorPlugin extends Plugin {
     } else {
       const webview = view.webview;
       if (!webview?.executeJavaScript) {
-        new Notice("O Web viewer ainda não terminou de carregar.");
+        new Notice(
+          "O Web viewer ainda não terminou de carregar."
+        );
         return;
       }
 
@@ -754,7 +610,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
           "window.getSelection().toString()",
           true
         );
-        text = safeString(result);
+        text = asString(result);
       } catch (error) {
         console.error(
           "Webview Text Selector: falha ao ler a seleção",
@@ -764,12 +620,14 @@ export default class WebviewTextSelectorPlugin extends Plugin {
     }
 
     if (!text.trim()) {
-      new Notice("Selecione um texto no Web viewer nativo.");
+      new Notice(
+        "Selecione um texto no Web viewer nativo."
+      );
       return;
     }
 
     const copy = this.webCopyFromView(view, text);
     this.rememberWebCopy(copy);
-    this.insertCitation(copy);
+    this.inserter.insert(copy);
   }
 }
