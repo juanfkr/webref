@@ -1,0 +1,9 @@
+{
+  "id": "webview-text-selector",
+  "name": "Webview Text Selector",
+  "version": "1.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "Transforma texto copiado do Web viewer nativo em citações formatadas ao colar em notas, com opção no menu de contexto do viewer.",
+  "author": "Juan",
+  "isDesktopOnly": true
+}
