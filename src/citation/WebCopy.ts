@@ -1,3 +1,5 @@
+import { hasVisibleText } from "../shared/text";
+
 /**
  * Texto selecionado no Web viewer nativo, junto com a origem da página.
  *
@@ -20,6 +22,6 @@ export class WebCopy {
 
   /** Indica se a captura possui texto utilizável. */
   hasText(): boolean {
-    return this.text.trim().length > 0;
+    return hasVisibleText(this.text);
   }
 }

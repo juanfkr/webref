@@ -24,14 +24,19 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/main.ts
 var main_exports = {};
 __export(main_exports, {
-  default: () => WebviewTextSelectorPlugin
+  default: () => main_default
 });
 module.exports = __toCommonJS(main_exports);
+
+// src/plugin/WebviewTextSelectorPlugin.ts
 var import_obsidian2 = require("obsidian");
 
 // src/shared/text.ts
 function asString(value) {
   return typeof value === "string" ? value : "";
+}
+function hasVisibleText(value) {
+  return value.trim().length > 0;
 }
 function normalizeForComparison(value) {
   return value.replace(/\u00a0/g, " ").replace(/[\u200b-\u200d\ufeff]/g, "").replace(/\s+/g, " ").trim();
@@ -313,7 +318,7 @@ var WebCopy = class {
   }
   /** Indica se a captura possui texto utilizável. */
   hasText() {
-    return this.text.trim().length > 0;
+    return hasVisibleText(this.text);
   }
 };
 
@@ -866,7 +871,7 @@ var WebviewerMenuDecorator = class {
   }
 };
 
-// src/main.ts
+// src/plugin/WebviewTextSelectorPlugin.ts
 var WEB_COPY_EVENT = "webview-text-selector:web-copy";
 var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
   constructor() {
@@ -971,3 +976,6 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
     this.inserter.insert(copy);
   }
 };
+
+// src/main.ts
+var main_default = WebviewTextSelectorPlugin;
