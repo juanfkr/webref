@@ -9,6 +9,7 @@ O plugin não abre outro navegador: ele usa o Web viewer que já faz parte do Ob
 - Copiou um texto no Web viewer? Ao colar na nota, ele vira uma citação formatada.
 - Também dá para citar pelo botão direito, sem precisar copiar e colar.
 - A citação já vem com o link da página, sem data, hora ou texto extra no final.
+- Funciona também no modo leitor do Web viewer.
 - Nenhuma configuração é necessária.
 
 ## Como usar
