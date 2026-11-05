@@ -3,23 +3,23 @@ import type { App, Editor, WorkspaceLeaf } from "obsidian";
 import { CitationFormatter } from "./CitationFormatter";
 import type { WebCopy } from "./WebCopy";
 
-/** Função usada para exibir mensagens curtas ao usuário. */
+/** Function used to show short messages to the user. */
 export type NoticeCallback = (message: string) => void;
 
 /**
- * Insere citações na última nota Markdown ativa.
+ * Inserts citations into the last active Markdown note.
  *
- * A view do Web viewer recebe o foco quando o usuário interage com a página,
- * então a nota de destino é lembrada separadamente. Na colagem, porém, o
- * editor correto é passado diretamente pelo evento do Obsidian.
+ * The Web viewer view receives focus when the user interacts with the page, so
+ * the target note is tracked separately. On paste, however, the correct editor
+ * is provided directly by the Obsidian event.
  */
 export class CitationInserter {
   private lastMarkdownView: MarkdownView | null = null;
 
   /**
-   * @param app Aplicativo do Obsidian.
-   * @param formatter Responsável por montar o bloco Markdown.
-   * @param notify Função de aviso; pode ser substituída em testes.
+   * @param app Obsidian application.
+   * @param formatter Responsible for building the Markdown block.
+   * @param notify Notification function; can be replaced in tests.
    */
   constructor(
     private readonly app: App,
@@ -29,9 +29,9 @@ export class CitationInserter {
   ) {}
 
   /**
-   * Lembra a nota quando uma leaf Markdown passa a ser a ativa.
+   * Remembers the note when a Markdown leaf becomes active.
    *
-   * @param leaf Leaf que recebeu o foco.
+   * @param leaf Leaf that received focus.
    */
   trackLeaf(leaf: WorkspaceLeaf | null): void {
     if (leaf?.view instanceof MarkdownView) {
@@ -39,7 +39,7 @@ export class CitationInserter {
     }
   }
 
-  /** Registra a nota Markdown ativa no momento da inicialização. */
+  /** Records the active Markdown note at startup. */
   trackActiveView(): void {
     const markdown = this.app.workspace.getActiveViewOfType(
       MarkdownView
@@ -48,11 +48,11 @@ export class CitationInserter {
   }
 
   /**
-   * Insere uma citação na nota de destino.
+   * Inserts a citation into the target note.
    *
-   * @param copy Captura do Web viewer a citar.
-   * @param editor Editor de destino. Quando omitido, usa a última nota ativa.
-   * @param noteName Nome da nota para a mensagem de confirmação.
+   * @param copy Web viewer capture to cite.
+   * @param editor Target editor. When omitted, uses the last active note.
+   * @param noteName Note name for the confirmation message.
    */
   insert(copy: WebCopy, editor?: Editor, noteName?: string): void {
     const target = editor ?? this.resolveTargetEditor();
@@ -86,9 +86,10 @@ export class CitationInserter {
   }
 
   /**
-   * Encontra o editor da nota ativa ou da última nota Markdown lembrada.
+   * Finds the editor of the active note or of the last remembered Markdown
+   * note.
    *
-   * A leaf é validada para evitar usar uma view que já foi fechada.
+   * The leaf is validated to avoid using a view that has already been closed.
    */
   private resolveTargetEditor(): Editor | null {
     const active = this.app.workspace.getActiveViewOfType(
@@ -110,11 +111,11 @@ export class CitationInserter {
   }
 
   /**
-   * Garante que o bloco de citação comece e termine em linhas próprias
-   * quando o cursor está no meio de um parágrafo.
+   * Ensures the citation block starts and ends on its own lines when the
+   * cursor is in the middle of a paragraph.
    *
-   * @param editor Editor que receberá a citação.
-   * @param citation Bloco já formatado.
+   * @param editor Editor that will receive the citation.
+   * @param citation Already formatted block.
    */
   private withSurroundingBreaks(
     editor: Editor,
@@ -130,7 +131,7 @@ export class CitationInserter {
       if (line.slice(0, cursor.ch).trim().length > 0) prefix = "\n\n";
       if (line.slice(cursor.ch).trim().length > 0) suffix = "\n\n";
     } catch {
-      // Alguns editores não expõem getCursor/getLine; insere direto.
+      // Some editors do not expose getCursor/getLine; insert directly.
     }
 
     return prefix + citation + suffix;

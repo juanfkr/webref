@@ -1,10 +1,10 @@
 import type { WebCopy } from "./WebCopy";
 
 /**
- * Guarda a última cópia feita no Web viewer nativo.
+ * Stores the latest copy made in the native Web viewer.
  *
- * Também permite que outros componentes sejam avisados quando uma nova
- * captura é registrada, sem precisar conhecer quem a produziu.
+ * It also lets other components be notified when a new capture is recorded,
+ * without needing to know who produced it.
  */
 export class WebCopyStore {
   private current: WebCopy | null = null;
@@ -13,21 +13,21 @@ export class WebCopyStore {
   >();
 
   /**
-   * Retorna a última cópia registrada.
+   * Returns the latest recorded copy.
    *
-   * @returns A cópia mais recente ou `null` quando não há nenhuma.
+   * @returns The most recent copy, or `null` when there is none.
    */
   getCurrent(): WebCopy | null {
     return this.current;
   }
 
   /**
-   * Registra uma nova cópia e avisa os interessados.
+   * Records a new copy and notifies interested listeners.
    *
-   * Capturas sem texto visível são ignoradas para não apagar uma cópia válida
-   * com uma seleção vazia acidental.
+   * Captures without visible text are ignored so an accidental empty selection
+   * does not erase a valid copy.
    *
-   * @param copy Cópia a registrar.
+   * @param copy Copy to record.
    */
   remember(copy: WebCopy): void {
     if (!copy.hasText()) return;
@@ -39,16 +39,16 @@ export class WebCopyStore {
     }
   }
 
-  /** Descarta a cópia atual. */
+  /** Discards the current copy. */
   clear(): void {
     this.current = null;
   }
 
   /**
-   * Registra um observador para novas cópias.
+   * Registers an observer for new copies.
    *
-   * @param listener Função chamada sempre que uma cópia válida é registrada.
-   * @returns Função para cancelar a inscrição.
+   * @param listener Function called whenever a valid copy is recorded.
+   * @returns Function that cancels the subscription.
    */
   onRemember(listener: (copy: WebCopy) => void): () => void {
     this.rememberListeners.add(listener);

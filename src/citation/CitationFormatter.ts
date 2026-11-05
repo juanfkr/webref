@@ -2,24 +2,24 @@ import { asString } from "../shared/text";
 import type { WebCopy } from "./WebCopy";
 
 /**
- * Monta o bloco Markdown de uma citação.
+ * Builds the Markdown block for a citation.
  *
- * O formato produzido é:
+ * The produced format is:
  *
  * ```markdown
- * > texto selecionado
+ * > selected text
  * >
- * > [Título da página](<https://exemplo.com>)
+ * > [Page title](<https://example.com>)
  * ```
  *
- * O rodapé contém apenas o hyperlink formatado, sem data ou hora.
+ * The footer contains only the formatted hyperlink, with no date or time.
  */
 export class CitationFormatter {
   /**
-   * Converte uma captura do Web viewer em um bloco de citação.
+   * Converts a Web viewer capture into a citation block.
    *
-   * @param copy Captura a formatar.
-   * @returns Bloco Markdown pronto para ser inserido na nota.
+   * @param copy Capture to format.
+   * @returns Markdown block ready to be inserted into the note.
    */
   format(copy: WebCopy): string {
     const text = this.normalizeText(copy.text);
@@ -32,9 +32,9 @@ export class CitationFormatter {
   }
 
   /**
-   * Padroniza quebras de linha e remove espaços nas extremidades.
+   * Standardizes line breaks and removes leading/trailing whitespace.
    *
-   * @param text Texto original da seleção.
+   * @param text Original selection text.
    */
   private normalizeText(text: string): string {
     return asString(text)
@@ -44,11 +44,11 @@ export class CitationFormatter {
   }
 
   /**
-   * Aplica o marcador de citação em uma linha.
+   * Applies the quote marker to a single line.
    *
-   * Linhas vazias viram `>` para preservar os parágrafos do texto original.
+   * Empty lines become `>` so the original text's paragraphs are preserved.
    *
-   * @param line Linha original.
+   * @param line Original line.
    */
   private quoteLine(line: string): string {
     const withoutTrailingSpaces = line.replace(/[ \t]+$/g, "");
@@ -58,9 +58,9 @@ export class CitationFormatter {
   }
 
   /**
-   * Monta o rodapé com o título e o link da página.
+   * Builds the footer with the page title and link.
    *
-   * @param copy Captura de origem.
+   * @param copy Source capture.
    */
   private formatSource(copy: WebCopy): string {
     const url = asString(copy.url).trim().replace(/[\r\n]+/g, "");

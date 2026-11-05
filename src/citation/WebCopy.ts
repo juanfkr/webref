@@ -1,17 +1,17 @@
 import { hasVisibleText } from "../shared/text";
 
 /**
- * Texto selecionado no Web viewer nativo, junto com a origem da página.
+ * Text selected in the native Web viewer, together with the page source.
  *
- * É um objeto imutável: uma vez capturado, o conteúdo não muda. Isso evita
- * que uma citação já montada seja alterada por engano.
+ * This is an immutable value object: once captured, its contents never change.
+ * That prevents an already-built citation from being modified by accident.
  */
 export class WebCopy {
   /**
-   * @param text Texto selecionado na página.
-   * @param url URL da página no momento da cópia.
-   * @param title Título da página no momento da cópia.
-   * @param capturedAt Momento da captura em milissegundos.
+   * @param text Text selected on the page.
+   * @param url Page URL at the time of the copy.
+   * @param title Page title at the time of the copy.
+   * @param capturedAt Capture time in milliseconds.
    */
   constructor(
     public readonly text: string,
@@ -20,7 +20,7 @@ export class WebCopy {
     public readonly capturedAt: number = Date.now()
   ) {}
 
-  /** Indica se a captura possui texto utilizável. */
+  /** Whether the capture contains usable text. */
   hasText(): boolean {
     return hasVisibleText(this.text);
   }

@@ -7,20 +7,20 @@ import { WebviewerPatcher } from "./WebviewerPatcher";
 import { WebviewerRegistry } from "./WebviewerRegistry";
 
 /**
- * Fachada da integração com o Web viewer nativo.
+ * Facade for the native Web viewer integration.
  *
- * Coordena o registro de views abertas e a aplicação dos patches, mantendo o
- * restante do plugin independente dos detalhes internos do Obsidian.
+ * Coordinates the registry of open views and the application of patches,
+ * keeping the rest of the plugin independent from Obsidian's internal details.
  */
 export class NativeWebviewerService {
   private readonly registry: WebviewerRegistry;
   private readonly patcher: WebviewerPatcher;
 
   /**
-   * @param app Aplicativo do Obsidian.
-   * @param store Armazenamento da última cópia.
-   * @param menuDecorator Decorador do menu de contexto.
-   * @param copyChannel Canal de captura das páginas.
+   * @param app Obsidian application.
+   * @param store Storage for the latest copy.
+   * @param menuDecorator Context menu decorator.
+   * @param copyChannel Page capture channel.
    */
   constructor(
     app: App,
@@ -32,41 +32,41 @@ export class NativeWebviewerService {
     this.patcher = new WebviewerPatcher(menuDecorator, copyChannel);
   }
 
-  /** Inicia o monitoramento dos Web viewers abertos. */
+  /** Starts monitoring open Web viewers. */
   start(): void {
     this.scan();
     this.registry.observe(() => this.scan());
   }
 
-  /** Remove listeners, observers e patches aplicados às views. */
+  /** Removes listeners, observers, and patches applied to views. */
   stop(): void {
     this.registry.stop();
     this.patcher.stop();
   }
 
   /**
-   * Lembra a última view do Web viewer que recebeu o foco.
+   * Remembers the last Web viewer view that received focus.
    *
-   * @param leaf Leaf ativa no momento.
+   * @param leaf Leaf that is active at the moment.
    */
   trackLeaf(leaf: WorkspaceLeaf | null): void {
     this.registry.trackLeaf(leaf);
   }
 
   /**
-   * Retorna o Web viewer ativo ou o último utilizado.
+   * Returns the active Web viewer or the last one used.
    *
-   * @returns A página encontrada ou `null` quando não há Web viewer aberto.
+   * @returns The page found, or `null` when no Web viewer is open.
    */
   getCurrentPage(): WebviewerPage | null {
     return this.registry.getCurrentPage();
   }
 
   /**
-   * Encontra e prepara todas as views do Web viewer abertas.
+   * Finds and prepares every open Web viewer view.
    *
-   * Pode ser chamado quantas vezes for necessário; views já preparadas são
-   * apenas verificadas novamente.
+   * Can be called as often as needed; already prepared views are simply checked
+   * again.
    */
   scan(): void {
     for (const page of this.registry.findAll()) {
@@ -75,11 +75,11 @@ export class NativeWebviewerService {
   }
 
   /**
-   * Trata cópias feitas no documento do Obsidian.
+   * Handles copies made in the Obsidian document.
    *
-   * Fora do modo leitor, qualquer cópia no aplicativo invalida a captura
-   * anterior. No modo leitor a seleção fica no documento do Obsidian, então
-   * ela é registrada aqui.
+   * Outside reader mode, any copy in the application invalidates the previous
+   * capture. In reader mode the selection lives in the Obsidian document, so it
+   * is recorded here.
    */
   handleHostCopy(): void {
     const page = this.registry.getActivePage();

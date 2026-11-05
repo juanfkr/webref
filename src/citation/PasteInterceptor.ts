@@ -4,17 +4,17 @@ import type { CitationInserter } from "./CitationInserter";
 import type { WebCopyStore } from "./WebCopyStore";
 
 /**
- * Intercepta a colagem de uma nota e a transforma em citação quando o texto
- * colado é o mesmo que foi copiado do Web viewer nativo.
+ * Intercepts note pasting and turns it into a citation when the pasted text is
+ * the same text that was copied from the native Web viewer.
  *
- * A comparação é deliberadamente tolerante a diferenças de espaços e quebras
- * de linha, comuns entre a seleção da página e o conteúdo da área de
- * transferência.
+ * The comparison is deliberately tolerant of whitespace and line-break
+ * differences, which are common between the page selection and the clipboard
+ * contents.
  */
 export class PasteInterceptor {
   /**
-   * @param store Armazenamento da última cópia do Web viewer.
-   * @param inserter Serviço que insere a citação na nota.
+   * @param store Storage for the latest Web viewer copy.
+   * @param inserter Service that inserts the citation into the note.
    */
   constructor(
     private readonly store: WebCopyStore,
@@ -22,14 +22,14 @@ export class PasteInterceptor {
   ) {}
 
   /**
-   * Trata o evento `editor-paste` do Obsidian.
+   * Handles the Obsidian `editor-paste` event.
    *
-   * Quando o texto colado corresponde à captura do Web viewer, o
-   * comportamento padrão é cancelado e a citação formatada é inserida.
+   * When the pasted text matches the Web viewer capture, the default behavior
+   * is cancelled and the formatted citation is inserted instead.
    *
-   * @param event Evento de colagem do editor.
-   * @param editor Editor que receberá o conteúdo.
-   * @param info Informações da nota de destino.
+   * @param event Editor paste event.
+   * @param editor Editor that will receive the content.
+   * @param info Information about the target note.
    */
   handle(
     event: ClipboardEvent,

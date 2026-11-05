@@ -4,25 +4,24 @@ import { WEBVIEWER_VIEW_TYPE } from "./constants";
 import { WebviewerPage } from "./WebviewerPage";
 
 /**
- * Localiza e acompanha as views do Web viewer nativo.
+ * Locates and keeps track of native Web viewer views.
  *
- * Esta classe não altera nenhuma view: apenas descobre quais estão abertas,
- * qual foi a última utilizada e quando um novo `<webview>` aparece no
- * documento.
+ * This class never modifies a view: it only discovers which ones are open,
+ * which was used last, and when a new `<webview>` appears in the document.
  */
 export class WebviewerRegistry {
   private observer: MutationObserver | null = null;
   private lastPage: WebviewerPage | null = null;
 
   /**
-   * @param app Aplicativo do Obsidian.
+   * @param app Obsidian application.
    */
   constructor(private readonly app: App) {}
 
   /**
-   * Lembra a última view do Web viewer que recebeu o foco.
+   * Remembers the last Web viewer view that received focus.
    *
-   * @param leaf Leaf ativa no momento.
+   * @param leaf Leaf that is active at the moment.
    */
   trackLeaf(leaf: WorkspaceLeaf | null): void {
     const view = leaf?.view;
@@ -34,9 +33,9 @@ export class WebviewerRegistry {
   }
 
   /**
-   * Lista todas as views do Web viewer abertas.
+   * Lists every open Web viewer view.
    *
-   * @returns Uma página encapsulada para cada view encontrada.
+   * @returns A wrapped page for each view found.
    */
   findAll(): WebviewerPage[] {
     const pages: WebviewerPage[] = [];
@@ -52,9 +51,9 @@ export class WebviewerRegistry {
   }
 
   /**
-   * Retorna o Web viewer ativo ou o último utilizado.
+   * Returns the active Web viewer or the last one used.
    *
-   * @returns A página encontrada ou `null` quando não há Web viewer aberto.
+   * @returns The page found, or `null` when no Web viewer is open.
    */
   getCurrentPage(): WebviewerPage | null {
     const active = this.getActivePage();
@@ -80,9 +79,9 @@ export class WebviewerRegistry {
   }
 
   /**
-   * Retorna a página somente quando o Web viewer está realmente ativo.
+   * Returns the page only when the Web viewer is actually active.
    *
-   * @returns A página ativa ou `null`.
+   * @returns The active page or `null`.
    */
   getActivePage(): WebviewerPage | null {
     const view = this.app.workspace.activeLeaf?.view;
@@ -94,13 +93,13 @@ export class WebviewerRegistry {
   }
 
   /**
-   * Observa o documento para descobrir novos elementos `<webview>`.
+   * Watches the document for new `<webview>` elements.
    *
-   * O observer cobre os casos em que uma view é montada sem uma mudança de
-   * layout perceptível. Os eventos do workspace continuam sendo usados como
-   * reforço pelo serviço principal.
+   * The observer covers cases where a view is mounted without a noticeable
+   * layout change. Workspace events are still used by the main service as a
+   * reinforcement.
    *
-   * @param onWebviewAdded Chamada quando um novo `<webview>` é inserido.
+   * @param onWebviewAdded Called when a new `<webview>` is inserted.
    */
   observe(onWebviewAdded: () => void): void {
     if (this.observer || !document.body) return;
@@ -127,7 +126,7 @@ export class WebviewerRegistry {
     });
   }
 
-  /** Interrompe a observação do documento. */
+  /** Stops watching the document. */
   stop(): void {
     this.observer?.disconnect();
     this.observer = null;

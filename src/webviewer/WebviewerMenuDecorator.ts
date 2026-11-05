@@ -6,16 +6,15 @@ import { MENU_ITEM_LABEL } from "./constants";
 import type { WebviewerPage } from "./WebviewerPage";
 
 /**
- * Acrescenta a ação de citação ao menu de contexto do Web viewer nativo.
+ * Adds the citation action to the native Web viewer context menu.
  *
- * O menu original do Obsidian é montado por uma API interna. O decorador
- * recebe os itens já prontos, preserva o funcionamento normal e adiciona
- * apenas o novo item.
+ * Obsidian's original menu is built by an internal API. The decorator receives
+ * the finished items, preserves normal behavior, and adds only the new item.
  */
 export class WebviewerMenuDecorator {
   /**
-   * @param store Armazenamento da última cópia.
-   * @param inserter Serviço que insere a citação na nota.
+   * @param store Storage for the latest copy.
+   * @param inserter Service that inserts the citation into the note.
    */
   constructor(
     private readonly store: WebCopyStore,
@@ -23,12 +22,12 @@ export class WebviewerMenuDecorator {
   ) {}
 
   /**
-   * Decora os itens do menu de contexto.
+   * Decorates the context menu items.
    *
-   * @param page Página do Web viewer que originou o menu.
-   * @param items Itens originais do menu.
-   * @param selectionText Texto selecionado no momento do clique direito.
-   * @returns A mesma lista, com o item de citação acrescentado.
+   * @param page Web viewer page that originated the menu.
+   * @param items Original menu items.
+   * @param selectionText Text selected at the time of the right-click.
+   * @returns The same list with the citation item added.
    */
   decorate(
     page: WebviewerPage,
@@ -43,9 +42,9 @@ export class WebviewerMenuDecorator {
       (item) => item && item.role === "copy"
     );
 
-    // No modo leitor a seleção está no documento do Obsidian. Nesse caso o
-    // item nativo "Copiar" deve continuar intacto; a captura é feita pelo
-    // evento copy do host.
+    // In reader mode the selection lives in the Obsidian document. In that
+    // case the native "Copy" item must stay untouched; the capture is done by
+    // the host copy event instead.
     if (copyIndex !== -1 && !page.isReaderMode) {
       const copyItem = items[copyIndex];
       delete copyItem.role;

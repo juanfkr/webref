@@ -1,35 +1,35 @@
 /**
- * Subconjunto da tag <webview> do Electron usado pelo Web viewer nativo.
+ * Subset of Electron's <webview> tag used by the native Web viewer.
  *
- * Os métodos abaixo não fazem parte do tipo padrão do DOM e só existem no
- * elemento criado pelo Obsidian no desktop.
+ * The methods below are not part of the standard DOM type and only exist on
+ * the element created by Obsidian on desktop.
  */
 export interface WebviewElementLike extends HTMLElement {
   /**
-   * Executa JavaScript dentro da página carregada.
+   * Executes JavaScript inside the loaded page.
    *
-   * @param code Código a executar no convidado.
-   * @param userGesture Simula um gesto do usuário, quando necessário.
+   * @param code Code to run in the guest page.
+   * @param userGesture Simulates a user gesture when needed.
    */
   executeJavaScript?: (
     code: string,
     userGesture?: boolean
   ) => Promise<unknown>;
 
-  /** Retorna a URL atual da página. */
+  /** Returns the current page URL. */
   getURL?: () => string;
 
-  /** Retorna o título atual da página. */
+  /** Returns the current page title. */
   getTitle?: () => string;
 
-  /** Copia a seleção atual do convidado para a área de transferência. */
+  /** Copies the guest's current selection to the clipboard. */
   copy?: () => void;
 
-  /** Indica se a página ainda está carregando. */
+  /** Indicates whether the page is still loading. */
   isLoading?: () => boolean;
 }
 
-/** Item do template de menu nativo aceito pelo Electron. */
+/** Native menu template item accepted by Electron. */
 export interface MenuItemLike {
   type?: string;
   label?: string;
@@ -41,11 +41,11 @@ export interface MenuItemLike {
 }
 
 /**
- * Subconjunto da view interna do Web viewer nativo.
+ * Subset of the native Web viewer's internal view.
  *
- * `contextMenuItemsForSelection` e `instantiateWebView` são APIs internas do
- * Obsidian. O plugin faz feature detection antes de usá-las, então o fluxo de
- * copiar/colar continua funcionando mesmo se elas mudarem.
+ * `contextMenuItemsForSelection` and `instantiateWebView` are Obsidian internal
+ * APIs. The plugin performs feature detection before using them, so the
+ * copy/paste flow keeps working even if they change.
  */
 export interface WebviewerViewLike {
   url?: string;

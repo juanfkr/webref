@@ -4,25 +4,25 @@ import type { WebviewElementLike } from "../shared/types";
 import { PageBridge } from "./PageBridge";
 
 /**
- * Conecta um `<webview>` ao armazenamento de cópias.
+ * Connects a `<webview>` to the copy store.
  *
- * A classe cuida apenas do ciclo de vida dos listeners e da tradução das
- * mensagens da página para objetos `WebCopy`.
+ * This class only handles the listener lifecycle and the translation of page
+ * messages into `WebCopy` objects.
  */
 export class WebviewCopyChannel {
   /**
-   * @param store Armazenamento que receberá as cópias.
+   * @param store Store that will receive the copies.
    */
   constructor(private readonly store: WebCopyStore) {}
 
   /**
-   * Conecta o canal a um webview.
+   * Connects the channel to a webview.
    *
-   * O script é instalado imediatamente, caso a página já esteja pronta, e
-   * novamente a cada `dom-ready` para sobreviver a navegações.
+   * The script is installed immediately in case the page is already ready, and
+   * again on every `dom-ready` to survive navigations.
    *
-   * @param webview Elemento do Web viewer nativo.
-   * @returns Função que remove os listeners adicionados.
+   * @param webview Native Web viewer element.
+   * @returns Function that removes the added listeners.
    */
   connect(webview: WebviewElementLike): () => void {
     const onDomReady = (): void => {
@@ -48,9 +48,9 @@ export class WebviewCopyChannel {
   }
 
   /**
-   * Converte uma mensagem válida da ponte em uma captura armazenada.
+   * Converts a valid bridge message into a stored capture.
    *
-   * @param event Evento `console-message` do webview.
+   * @param event The webview's `console-message` event.
    */
   private handleConsoleMessage(event: Event): void {
     const payload = PageBridge.parseConsoleMessage(event);

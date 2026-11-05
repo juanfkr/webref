@@ -2,7 +2,7 @@ import { asString } from "../shared/text";
 import type { WebviewElementLike } from "../shared/types";
 import { COPY_MARKER, MAX_TEXT_CHARS } from "./constants";
 
-/** Dados enviados pelo script injetado na página. */
+/** Data sent by the script injected into the page. */
 export interface PageBridgePayload {
   text: string;
   url: string;
@@ -10,20 +10,20 @@ export interface PageBridgePayload {
 }
 
 /**
- * Instala e interpreta a ponte de comunicação com a página do Web viewer.
+ * Installs and interprets the communication bridge with the Web viewer page.
  *
- * O Obsidian executa o webview em modo sandbox e sem preload, então não há
- * `ipcRenderer` disponível. A ponte usa `executeJavaScript()` para injetar um
- * script e `console.log` + evento `console-message` para trazer o texto de
- * volta ao processo principal.
+ * Obsidian runs the webview in sandbox mode and without a preload, so there is
+ * no `ipcRenderer` available. The bridge uses `executeJavaScript()` to inject a
+ * script and `console.log` + the `console-message` event to bring the text back
+ * to the main process.
  */
 export class PageBridge {
   /**
-   * Instala o script de captura na página atual do webview.
+   * Installs the capture script into the webview's current page.
    *
-   * A instalação é idempotente: o próprio script ignora chamadas repetidas.
+   * Installation is idempotent: the script itself ignores repeated calls.
    *
-   * @param webview Elemento do Web viewer nativo.
+   * @param webview Native Web viewer element.
    */
   static install(webview: WebviewElementLike): void {
     if (typeof webview.executeJavaScript !== "function") return;
@@ -38,15 +38,15 @@ export class PageBridge {
         result.catch(() => undefined);
       }
     } catch {
-      // A página pode ter sido destruída/navegada durante a injeção.
+      // The page may have been destroyed or navigated during injection.
     }
   }
 
   /**
-   * Lê e valida uma mensagem recebida pelo evento `console-message`.
+   * Reads and validates a message received through the `console-message` event.
    *
-   * @param event Evento emitido pelo `<webview>`.
-   * @returns Os dados da cópia ou `null` quando a mensagem não é da ponte.
+   * @param event Event emitted by the `<webview>`.
+   * @returns The copy data, or `null` when the message is not from the bridge.
    */
   static parseConsoleMessage(event: Event): PageBridgePayload | null {
     const payload = event as Event & {
@@ -82,21 +82,21 @@ export class PageBridge {
         title: asString(data.title),
       };
     } catch {
-      // Mensagem de console não relacionada ou payload inválido.
+      // Unrelated console message or invalid payload.
       return null;
     }
   }
 }
 
 /**
- * Script executado dentro da página.
+ * Script executed inside the page.
  *
- * Precisa ser autossuficiente: é serializado com `Function#toString()` e
- * executado no convidado, sem acesso ao escopo do plugin. Não mova lógica
- * externa para dentro desta função nem referencie variáveis de fora.
+ * It must be self-contained: it is serialized with `Function#toString()` and
+ * runs in the guest, without access to the plugin scope. Do not move external
+ * logic into this function or reference variables from outside it.
  *
- * @param marker Marcador usado para identificar as mensagens no console.
- * @param maxChars Limite de caracteres enviados ao host.
+ * @param marker Marker used to identify messages in the console.
+ * @param maxChars Character limit sent to the host.
  */
 function installPageBridge(marker: string, maxChars: number): void {
   const win = window as unknown as {
@@ -122,7 +122,7 @@ function installPageBridge(marker: string, maxChars: number): void {
           return active.value.slice(start, end);
         }
       } catch {
-        // Alguns tipos de input não expõem selectionStart/selectionEnd.
+        // Some input types do not expose selectionStart/selectionEnd.
       }
     }
 
@@ -147,7 +147,7 @@ function installPageBridge(marker: string, maxChars: number): void {
           })
       );
     } catch {
-      // A página pode ter substituído o console; não há outro canal.
+      // The page may have replaced the console; there is no other channel.
     }
   };
 
@@ -160,10 +160,10 @@ function installPageBridge(marker: string, maxChars: number): void {
     }, 0);
   };
 
-  // O evento "copy" cobre Ctrl+C, menu nativo e cópia programática.
+  // The "copy" event covers Ctrl+C, the native menu and programmatic copies.
   document.addEventListener("copy", schedule, true);
 
-  // Reforço para navegadores/páginas que não disparem "copy".
+  // Fallback for browsers/pages that do not fire "copy".
   document.addEventListener(
     "keydown",
     (event) => {

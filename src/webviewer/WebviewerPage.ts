@@ -7,34 +7,34 @@ import type {
 import { MAX_TEXT_CHARS } from "./constants";
 
 /**
- * Encapsula o acesso à view interna do Web viewer nativo.
+ * Encapsulates access to the native Web viewer's internal view.
  *
- * Centralizar esse acesso evita que detalhes da API interna do Obsidian se
- * espalhem pelo restante do plugin. Se a estrutura mudar em uma versão futura,
- * basta ajustar esta classe.
+ * Centralizing this access keeps the details of Obsidian's internal API from
+ * spreading through the rest of the plugin. If the structure changes in a
+ * future version, only this class needs to be adjusted.
  */
 export class WebviewerPage {
   /**
-   * @param source Objeto interno da view `webviewer`.
+   * @param source Internal `webviewer` view object.
    */
   constructor(private readonly source: WebviewerViewLike) {}
 
-  /** Retorna a view interna original. */
+  /** Returns the original internal view. */
   get view(): WebviewerViewLike {
     return this.source;
   }
 
-  /** Elemento `<webview>` atual, quando existir. */
+  /** Current `<webview>` element, when present. */
   get webview(): WebviewElementLike | undefined {
     return this.source.webview;
   }
 
-  /** Indica se a página está sendo exibida no modo leitor. */
+  /** Whether the page is being displayed in reader mode. */
   get isReaderMode(): boolean {
     return this.source.mode === "reader";
   }
 
-  /** Indica se é possível ler a seleção atual da página. */
+  /** Whether the page's current selection can be read. */
   get canReadSelection(): boolean {
     return (
       this.isReaderMode ||
@@ -43,9 +43,9 @@ export class WebviewerPage {
   }
 
   /**
-   * Cria uma captura usando a URL e o título atuais da página.
+   * Creates a capture using the page's current URL and title.
    *
-   * @param text Texto selecionado.
+   * @param text Selected text.
    */
   capture(text: string): WebCopy {
     const webview = this.webview;
@@ -54,7 +54,7 @@ export class WebviewerPage {
     try {
       url = asString(webview?.getURL?.());
     } catch {
-      // Webview destruída durante a leitura.
+      // Webview destroyed during the read.
     }
     if (!url) url = asString(this.source.url);
 
@@ -62,7 +62,7 @@ export class WebviewerPage {
     try {
       title = asString(webview?.getTitle?.());
     } catch {
-      // Webview destruída durante a leitura.
+      // Webview destroyed during the read.
     }
     if (!title) title = asString(this.source.title);
 
@@ -75,10 +75,10 @@ export class WebviewerPage {
   }
 
   /**
-   * Lê a seleção atual.
+   * Reads the current selection.
    *
-   * No modo leitor a seleção pertence ao documento do Obsidian; no modo
-   * normal ela está dentro da página carregada no webview.
+   * In reader mode the selection belongs to the Obsidian document; in normal
+   * mode it is inside the page loaded in the webview.
    */
   async readSelection(): Promise<string> {
     if (this.isReaderMode) {
@@ -104,9 +104,9 @@ export class WebviewerPage {
   }
 
   /**
-   * Copia a seleção atual do convidado para a área de transferência.
+   * Copies the guest's current selection to the clipboard.
    *
-   * Usado pelo item nativo "Copiar" do menu de contexto.
+   * Used by the native "Copy" item in the context menu.
    */
   copySelectionToClipboard(): void {
     try {

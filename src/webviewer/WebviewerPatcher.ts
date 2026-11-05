@@ -8,11 +8,11 @@ import type { WebviewerMenuDecorator } from "./WebviewerMenuDecorator";
 import type { WebviewerPage } from "./WebviewerPage";
 
 /**
- * Aplica os patches necessários nas views do Web viewer nativo.
+ * Applies the necessary patches to native Web viewer views.
  *
- * Os métodos internos do Obsidian são envolvidos uma única vez por view. O
- * patch é reversível para que o plugin possa ser descarregado sem deixar
- * funções apontando para uma instância antiga.
+ * Obsidian's internal methods are wrapped once per view. The patch is
+ * reversible so the plugin can be unloaded without leaving functions pointing
+ * to an old instance.
  */
 export class WebviewerPatcher {
   private active = true;
@@ -25,8 +25,8 @@ export class WebviewerPatcher {
   private readonly cleanups = new Set<() => void>();
 
   /**
-   * @param menuDecorator Decorador do menu de contexto.
-   * @param copyChannel Canal de captura das páginas.
+   * @param menuDecorator Context menu decorator.
+   * @param copyChannel Page capture channel.
    */
   constructor(
     private readonly menuDecorator: WebviewerMenuDecorator,
@@ -34,9 +34,9 @@ export class WebviewerPatcher {
   ) {}
 
   /**
-   * Prepara uma view e conecta o `<webview>` atual.
+   * Prepares a view and connects the current `<webview>`.
    *
-   * @param page Página a preparar.
+   * @param page Page to prepare.
    */
   patch(page: WebviewerPage): void {
     if (!this.active) return;
@@ -45,7 +45,7 @@ export class WebviewerPatcher {
     this.hookWebview(page);
   }
 
-  /** Remove listeners e restaura os métodos originais das views. */
+  /** Removes listeners and restores the views' original methods. */
   stop(): void {
     this.active = false;
 
@@ -53,7 +53,7 @@ export class WebviewerPatcher {
       try {
         cleanup();
       } catch {
-        // Ignora falhas ao remover listeners de webviews já destruídos.
+        // Ignore failures while removing listeners from destroyed webviews.
       }
     }
     this.cleanups.clear();
@@ -62,16 +62,16 @@ export class WebviewerPatcher {
       try {
         patch.restore();
       } catch {
-        // Ignora falhas ao restaurar métodos de views já descartadas.
+        // Ignore failures while restoring methods of discarded views.
       }
     }
     this.patches = [];
   }
 
   /**
-   * Envolve os métodos internos da view, quando disponíveis.
+   * Wraps the view's internal methods when available.
    *
-   * @param page Página cujos métodos serão envolvidos.
+   * @param page Page whose methods will be wrapped.
    */
   private patchViewMethods(page: WebviewerPage): void {
     const view = page.view;
@@ -101,11 +101,11 @@ export class WebviewerPatcher {
   }
 
   /**
-   * Garante que webviews recriados pelo Obsidian sejam conectados de novo.
+   * Ensures webviews recreated by Obsidian are connected again.
    *
-   * @param view View interna do Web viewer.
-   * @param page Página correspondente.
-   * @returns Função que restaura o método original.
+   * @param view Internal Web viewer view.
+   * @param page Corresponding page.
+   * @returns Function that restores the original method.
    */
   private patchInstantiateWebView(
     view: WebviewerViewLike,
@@ -130,11 +130,11 @@ export class WebviewerPatcher {
   }
 
   /**
-   * Acrescenta a ação de citação ao menu de contexto nativo.
+   * Adds the citation action to the native context menu.
    *
-   * @param view View interna do Web viewer.
-   * @param page Página correspondente.
-   * @returns Função que restaura o método original.
+   * @param view Internal Web viewer view.
+   * @param page Corresponding page.
+   * @returns Function that restores the original method.
    */
   private patchContextMenu(
     view: WebviewerViewLike,
@@ -166,9 +166,9 @@ export class WebviewerPatcher {
   }
 
   /**
-   * Conecta o canal de cópia ao `<webview>` atual da página.
+   * Connects the copy channel to the page's current `<webview>`.
    *
-   * @param page Página cujo webview será conectado.
+   * @param page Page whose webview will be connected.
    */
   private hookWebview(page: WebviewerPage): void {
     if (!this.active) return;

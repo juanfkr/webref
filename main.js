@@ -54,10 +54,10 @@ function isSameText(left, right) {
 // src/citation/CitationFormatter.ts
 var CitationFormatter = class {
   /**
-   * Converte uma captura do Web viewer em um bloco de citação.
+   * Converts a Web viewer capture into a citation block.
    *
-   * @param copy Captura a formatar.
-   * @returns Bloco Markdown pronto para ser inserido na nota.
+   * @param copy Capture to format.
+   * @returns Markdown block ready to be inserted into the note.
    */
   format(copy) {
     const text = this.normalizeText(copy.text);
@@ -67,28 +67,28 @@ var CitationFormatter = class {
 > ${this.formatSource(copy)}`;
   }
   /**
-   * Padroniza quebras de linha e remove espaços nas extremidades.
+   * Standardizes line breaks and removes leading/trailing whitespace.
    *
-   * @param text Texto original da seleção.
+   * @param text Original selection text.
    */
   normalizeText(text) {
     return asString(text).replace(/\u00a0/g, " ").replace(/\r\n?/g, "\n").trim();
   }
   /**
-   * Aplica o marcador de citação em uma linha.
+   * Applies the quote marker to a single line.
    *
-   * Linhas vazias viram `>` para preservar os parágrafos do texto original.
+   * Empty lines become `>` so the original text's paragraphs are preserved.
    *
-   * @param line Linha original.
+   * @param line Original line.
    */
   quoteLine(line) {
     const withoutTrailingSpaces = line.replace(/[ \t]+$/g, "");
     return withoutTrailingSpaces.trim().length > 0 ? `> ${withoutTrailingSpaces}` : ">";
   }
   /**
-   * Monta o rodapé com o título e o link da página.
+   * Builds the footer with the page title and link.
    *
-   * @param copy Captura de origem.
+   * @param copy Source capture.
    */
   formatSource(copy) {
     const url = asString(copy.url).trim().replace(/[\r\n]+/g, "");
@@ -102,9 +102,9 @@ var CitationFormatter = class {
 var import_obsidian = require("obsidian");
 var CitationInserter = class {
   /**
-   * @param app Aplicativo do Obsidian.
-   * @param formatter Responsável por montar o bloco Markdown.
-   * @param notify Função de aviso; pode ser substituída em testes.
+   * @param app Obsidian application.
+   * @param formatter Responsible for building the Markdown block.
+   * @param notify Notification function; can be replaced in tests.
    */
   constructor(app, formatter, notify = (message) => new import_obsidian.Notice(message)) {
     this.app = app;
@@ -113,16 +113,16 @@ var CitationInserter = class {
     this.lastMarkdownView = null;
   }
   /**
-   * Lembra a nota quando uma leaf Markdown passa a ser a ativa.
+   * Remembers the note when a Markdown leaf becomes active.
    *
-   * @param leaf Leaf que recebeu o foco.
+   * @param leaf Leaf that received focus.
    */
   trackLeaf(leaf) {
     if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian.MarkdownView) {
       this.lastMarkdownView = leaf.view;
     }
   }
-  /** Registra a nota Markdown ativa no momento da inicialização. */
+  /** Records the active Markdown note at startup. */
   trackActiveView() {
     const markdown = this.app.workspace.getActiveViewOfType(
       import_obsidian.MarkdownView
@@ -131,11 +131,11 @@ var CitationInserter = class {
       this.lastMarkdownView = markdown;
   }
   /**
-   * Insere uma citação na nota de destino.
+   * Inserts a citation into the target note.
    *
-   * @param copy Captura do Web viewer a citar.
-   * @param editor Editor de destino. Quando omitido, usa a última nota ativa.
-   * @param noteName Nome da nota para a mensagem de confirmação.
+   * @param copy Web viewer capture to cite.
+   * @param editor Target editor. When omitted, uses the last active note.
+   * @param noteName Note name for the confirmation message.
    */
   insert(copy, editor, noteName) {
     const target = editor != null ? editor : this.resolveTargetEditor();
@@ -162,9 +162,10 @@ var CitationInserter = class {
     }
   }
   /**
-   * Encontra o editor da nota ativa ou da última nota Markdown lembrada.
+   * Finds the editor of the active note or of the last remembered Markdown
+   * note.
    *
-   * A leaf é validada para evitar usar uma view que já foi fechada.
+   * The leaf is validated to avoid using a view that has already been closed.
    */
   resolveTargetEditor() {
     const active = this.app.workspace.getActiveViewOfType(
@@ -185,11 +186,11 @@ var CitationInserter = class {
     }
   }
   /**
-   * Garante que o bloco de citação comece e termine em linhas próprias
-   * quando o cursor está no meio de um parágrafo.
+   * Ensures the citation block starts and ends on its own lines when the
+   * cursor is in the middle of a paragraph.
    *
-   * @param editor Editor que receberá a citação.
-   * @param citation Bloco já formatado.
+   * @param editor Editor that will receive the citation.
+   * @param citation Already formatted block.
    */
   withSurroundingBreaks(editor, citation) {
     var _a;
@@ -211,22 +212,22 @@ var CitationInserter = class {
 // src/citation/PasteInterceptor.ts
 var PasteInterceptor = class {
   /**
-   * @param store Armazenamento da última cópia do Web viewer.
-   * @param inserter Serviço que insere a citação na nota.
+   * @param store Storage for the latest Web viewer copy.
+   * @param inserter Service that inserts the citation into the note.
    */
   constructor(store, inserter) {
     this.store = store;
     this.inserter = inserter;
   }
   /**
-   * Trata o evento `editor-paste` do Obsidian.
+   * Handles the Obsidian `editor-paste` event.
    *
-   * Quando o texto colado corresponde à captura do Web viewer, o
-   * comportamento padrão é cancelado e a citação formatada é inserida.
+   * When the pasted text matches the Web viewer capture, the default behavior
+   * is cancelled and the formatted citation is inserted instead.
    *
-   * @param event Evento de colagem do editor.
-   * @param editor Editor que receberá o conteúdo.
-   * @param info Informações da nota de destino.
+   * @param event Editor paste event.
+   * @param editor Editor that will receive the content.
+   * @param info Information about the target note.
    */
   handle(event, editor, info) {
     var _a, _b;
@@ -255,20 +256,20 @@ var WebCopyStore = class {
     this.rememberListeners = /* @__PURE__ */ new Set();
   }
   /**
-   * Retorna a última cópia registrada.
+   * Returns the latest recorded copy.
    *
-   * @returns A cópia mais recente ou `null` quando não há nenhuma.
+   * @returns The most recent copy, or `null` when there is none.
    */
   getCurrent() {
     return this.current;
   }
   /**
-   * Registra uma nova cópia e avisa os interessados.
+   * Records a new copy and notifies interested listeners.
    *
-   * Capturas sem texto visível são ignoradas para não apagar uma cópia válida
-   * com uma seleção vazia acidental.
+   * Captures without visible text are ignored so an accidental empty selection
+   * does not erase a valid copy.
    *
-   * @param copy Cópia a registrar.
+   * @param copy Copy to record.
    */
   remember(copy) {
     if (!copy.hasText())
@@ -278,15 +279,15 @@ var WebCopyStore = class {
       listener(copy);
     }
   }
-  /** Descarta a cópia atual. */
+  /** Discards the current copy. */
   clear() {
     this.current = null;
   }
   /**
-   * Registra um observador para novas cópias.
+   * Registers an observer for new copies.
    *
-   * @param listener Função chamada sempre que uma cópia válida é registrada.
-   * @returns Função para cancelar a inscrição.
+   * @param listener Function called whenever a valid copy is recorded.
+   * @returns Function that cancels the subscription.
    */
   onRemember(listener) {
     this.rememberListeners.add(listener);
@@ -299,8 +300,8 @@ var WebCopyStore = class {
 // src/webviewer/WebviewerPatcher.ts
 var WebviewerPatcher = class {
   /**
-   * @param menuDecorator Decorador do menu de contexto.
-   * @param copyChannel Canal de captura das páginas.
+   * @param menuDecorator Context menu decorator.
+   * @param copyChannel Page capture channel.
    */
   constructor(menuDecorator, copyChannel) {
     this.menuDecorator = menuDecorator;
@@ -312,9 +313,9 @@ var WebviewerPatcher = class {
     this.cleanups = /* @__PURE__ */ new Set();
   }
   /**
-   * Prepara uma view e conecta o `<webview>` atual.
+   * Prepares a view and connects the current `<webview>`.
    *
-   * @param page Página a preparar.
+   * @param page Page to prepare.
    */
   patch(page) {
     if (!this.active)
@@ -322,7 +323,7 @@ var WebviewerPatcher = class {
     this.patchViewMethods(page);
     this.hookWebview(page);
   }
-  /** Remove listeners e restaura os métodos originais das views. */
+  /** Removes listeners and restores the views' original methods. */
   stop() {
     this.active = false;
     for (const cleanup of this.cleanups) {
@@ -341,9 +342,9 @@ var WebviewerPatcher = class {
     this.patches = [];
   }
   /**
-   * Envolve os métodos internos da view, quando disponíveis.
+   * Wraps the view's internal methods when available.
    *
-   * @param page Página cujos métodos serão envolvidos.
+   * @param page Page whose methods will be wrapped.
    */
   patchViewMethods(page) {
     const view = page.view;
@@ -369,11 +370,11 @@ var WebviewerPatcher = class {
     });
   }
   /**
-   * Garante que webviews recriados pelo Obsidian sejam conectados de novo.
+   * Ensures webviews recreated by Obsidian are connected again.
    *
-   * @param view View interna do Web viewer.
-   * @param page Página correspondente.
-   * @returns Função que restaura o método original.
+   * @param view Internal Web viewer view.
+   * @param page Corresponding page.
+   * @returns Function that restores the original method.
    */
   patchInstantiateWebView(view, page) {
     const original = view.instantiateWebView;
@@ -392,11 +393,11 @@ var WebviewerPatcher = class {
     };
   }
   /**
-   * Acrescenta a ação de citação ao menu de contexto nativo.
+   * Adds the citation action to the native context menu.
    *
-   * @param view View interna do Web viewer.
-   * @param page Página correspondente.
-   * @returns Função que restaura o método original.
+   * @param view Internal Web viewer view.
+   * @param page Corresponding page.
+   * @returns Function that restores the original method.
    */
   patchContextMenu(view, page) {
     const original = view.contextMenuItemsForSelection;
@@ -418,9 +419,9 @@ var WebviewerPatcher = class {
     };
   }
   /**
-   * Conecta o canal de cópia ao `<webview>` atual da página.
+   * Connects the copy channel to the page's current `<webview>`.
    *
-   * @param page Página cujo webview será conectado.
+   * @param page Page whose webview will be connected.
    */
   hookWebview(page) {
     if (!this.active)
@@ -444,10 +445,10 @@ var MENU_ITEM_LABEL = "Inserir cita\xE7\xE3o na nota";
 // src/citation/WebCopy.ts
 var WebCopy = class {
   /**
-   * @param text Texto selecionado na página.
-   * @param url URL da página no momento da cópia.
-   * @param title Título da página no momento da cópia.
-   * @param capturedAt Momento da captura em milissegundos.
+   * @param text Text selected on the page.
+   * @param url Page URL at the time of the copy.
+   * @param title Page title at the time of the copy.
+   * @param capturedAt Capture time in milliseconds.
    */
   constructor(text, url, title, capturedAt = Date.now()) {
     this.text = text;
@@ -455,7 +456,7 @@ var WebCopy = class {
     this.title = title;
     this.capturedAt = capturedAt;
   }
-  /** Indica se a captura possui texto utilizável. */
+  /** Whether the capture contains usable text. */
   hasText() {
     return hasVisibleText(this.text);
   }
@@ -464,32 +465,32 @@ var WebCopy = class {
 // src/webviewer/WebviewerPage.ts
 var WebviewerPage = class {
   /**
-   * @param source Objeto interno da view `webviewer`.
+   * @param source Internal `webviewer` view object.
    */
   constructor(source) {
     this.source = source;
   }
-  /** Retorna a view interna original. */
+  /** Returns the original internal view. */
   get view() {
     return this.source;
   }
-  /** Elemento `<webview>` atual, quando existir. */
+  /** Current `<webview>` element, when present. */
   get webview() {
     return this.source.webview;
   }
-  /** Indica se a página está sendo exibida no modo leitor. */
+  /** Whether the page is being displayed in reader mode. */
   get isReaderMode() {
     return this.source.mode === "reader";
   }
-  /** Indica se é possível ler a seleção atual da página. */
+  /** Whether the page's current selection can be read. */
   get canReadSelection() {
     var _a;
     return this.isReaderMode || typeof ((_a = this.webview) == null ? void 0 : _a.executeJavaScript) === "function";
   }
   /**
-   * Cria uma captura usando a URL e o título atuais da página.
+   * Creates a capture using the page's current URL and title.
    *
-   * @param text Texto selecionado.
+   * @param text Selected text.
    */
   capture(text) {
     var _a, _b;
@@ -516,10 +517,10 @@ var WebviewerPage = class {
     );
   }
   /**
-   * Lê a seleção atual.
+   * Reads the current selection.
    *
-   * No modo leitor a seleção pertence ao documento do Obsidian; no modo
-   * normal ela está dentro da página carregada no webview.
+   * In reader mode the selection belongs to the Obsidian document; in normal
+   * mode it is inside the page loaded in the webview.
    */
   async readSelection() {
     var _a, _b;
@@ -544,9 +545,9 @@ var WebviewerPage = class {
     }
   }
   /**
-   * Copia a seleção atual do convidado para a área de transferência.
+   * Copies the guest's current selection to the clipboard.
    *
-   * Usado pelo item nativo "Copiar" do menu de contexto.
+   * Used by the native "Copy" item in the context menu.
    */
   copySelectionToClipboard() {
     var _a, _b;
@@ -564,7 +565,7 @@ var WebviewerPage = class {
 // src/webviewer/WebviewerRegistry.ts
 var WebviewerRegistry = class {
   /**
-   * @param app Aplicativo do Obsidian.
+   * @param app Obsidian application.
    */
   constructor(app) {
     this.app = app;
@@ -572,9 +573,9 @@ var WebviewerRegistry = class {
     this.lastPage = null;
   }
   /**
-   * Lembra a última view do Web viewer que recebeu o foco.
+   * Remembers the last Web viewer view that received focus.
    *
-   * @param leaf Leaf ativa no momento.
+   * @param leaf Leaf that is active at the moment.
    */
   trackLeaf(leaf) {
     const view = leaf == null ? void 0 : leaf.view;
@@ -585,9 +586,9 @@ var WebviewerRegistry = class {
     }
   }
   /**
-   * Lista todas as views do Web viewer abertas.
+   * Lists every open Web viewer view.
    *
-   * @returns Uma página encapsulada para cada view encontrada.
+   * @returns A wrapped page for each view found.
    */
   findAll() {
     const pages = [];
@@ -601,9 +602,9 @@ var WebviewerRegistry = class {
     return pages;
   }
   /**
-   * Retorna o Web viewer ativo ou o último utilizado.
+   * Returns the active Web viewer or the last one used.
    *
-   * @returns A página encontrada ou `null` quando não há Web viewer aberto.
+   * @returns The page found, or `null` when no Web viewer is open.
    */
   getCurrentPage() {
     const active = this.getActivePage();
@@ -621,9 +622,9 @@ var WebviewerRegistry = class {
     ) : null;
   }
   /**
-   * Retorna a página somente quando o Web viewer está realmente ativo.
+   * Returns the page only when the Web viewer is actually active.
    *
-   * @returns A página ativa ou `null`.
+   * @returns The active page or `null`.
    */
   getActivePage() {
     var _a;
@@ -635,13 +636,13 @@ var WebviewerRegistry = class {
     );
   }
   /**
-   * Observa o documento para descobrir novos elementos `<webview>`.
+   * Watches the document for new `<webview>` elements.
    *
-   * O observer cobre os casos em que uma view é montada sem uma mudança de
-   * layout perceptível. Os eventos do workspace continuam sendo usados como
-   * reforço pelo serviço principal.
+   * The observer covers cases where a view is mounted without a noticeable
+   * layout change. Workspace events are still used by the main service as a
+   * reinforcement.
    *
-   * @param onWebviewAdded Chamada quando um novo `<webview>` é inserido.
+   * @param onWebviewAdded Called when a new `<webview>` is inserted.
    */
   observe(onWebviewAdded) {
     if (this.observer || !document.body)
@@ -664,7 +665,7 @@ var WebviewerRegistry = class {
       subtree: true
     });
   }
-  /** Interrompe a observação do documento. */
+  /** Stops watching the document. */
   stop() {
     var _a;
     (_a = this.observer) == null ? void 0 : _a.disconnect();
@@ -676,47 +677,47 @@ var WebviewerRegistry = class {
 // src/webviewer/NativeWebviewerService.ts
 var NativeWebviewerService = class {
   /**
-   * @param app Aplicativo do Obsidian.
-   * @param store Armazenamento da última cópia.
-   * @param menuDecorator Decorador do menu de contexto.
-   * @param copyChannel Canal de captura das páginas.
+   * @param app Obsidian application.
+   * @param store Storage for the latest copy.
+   * @param menuDecorator Context menu decorator.
+   * @param copyChannel Page capture channel.
    */
   constructor(app, store, menuDecorator, copyChannel) {
     this.store = store;
     this.registry = new WebviewerRegistry(app);
     this.patcher = new WebviewerPatcher(menuDecorator, copyChannel);
   }
-  /** Inicia o monitoramento dos Web viewers abertos. */
+  /** Starts monitoring open Web viewers. */
   start() {
     this.scan();
     this.registry.observe(() => this.scan());
   }
-  /** Remove listeners, observers e patches aplicados às views. */
+  /** Removes listeners, observers, and patches applied to views. */
   stop() {
     this.registry.stop();
     this.patcher.stop();
   }
   /**
-   * Lembra a última view do Web viewer que recebeu o foco.
+   * Remembers the last Web viewer view that received focus.
    *
-   * @param leaf Leaf ativa no momento.
+   * @param leaf Leaf that is active at the moment.
    */
   trackLeaf(leaf) {
     this.registry.trackLeaf(leaf);
   }
   /**
-   * Retorna o Web viewer ativo ou o último utilizado.
+   * Returns the active Web viewer or the last one used.
    *
-   * @returns A página encontrada ou `null` quando não há Web viewer aberto.
+   * @returns The page found, or `null` when no Web viewer is open.
    */
   getCurrentPage() {
     return this.registry.getCurrentPage();
   }
   /**
-   * Encontra e prepara todas as views do Web viewer abertas.
+   * Finds and prepares every open Web viewer view.
    *
-   * Pode ser chamado quantas vezes for necessário; views já preparadas são
-   * apenas verificadas novamente.
+   * Can be called as often as needed; already prepared views are simply checked
+   * again.
    */
   scan() {
     for (const page of this.registry.findAll()) {
@@ -724,11 +725,11 @@ var NativeWebviewerService = class {
     }
   }
   /**
-   * Trata cópias feitas no documento do Obsidian.
+   * Handles copies made in the Obsidian document.
    *
-   * Fora do modo leitor, qualquer cópia no aplicativo invalida a captura
-   * anterior. No modo leitor a seleção fica no documento do Obsidian, então
-   * ela é registrada aqui.
+   * Outside reader mode, any copy in the application invalidates the previous
+   * capture. In reader mode the selection lives in the Obsidian document, so it
+   * is recorded here.
    */
   handleHostCopy() {
     var _a, _b;
@@ -749,11 +750,11 @@ var NativeWebviewerService = class {
 // src/webviewer/PageBridge.ts
 var PageBridge = class {
   /**
-   * Instala o script de captura na página atual do webview.
+   * Installs the capture script into the webview's current page.
    *
-   * A instalação é idempotente: o próprio script ignora chamadas repetidas.
+   * Installation is idempotent: the script itself ignores repeated calls.
    *
-   * @param webview Elemento do Web viewer nativo.
+   * @param webview Native Web viewer element.
    */
   static install(webview) {
     if (typeof webview.executeJavaScript !== "function")
@@ -770,10 +771,10 @@ var PageBridge = class {
     }
   }
   /**
-   * Lê e valida uma mensagem recebida pelo evento `console-message`.
+   * Reads and validates a message received through the `console-message` event.
    *
-   * @param event Evento emitido pelo `<webview>`.
-   * @returns Os dados da cópia ou `null` quando a mensagem não é da ponte.
+   * @param event Event emitted by the `<webview>`.
+   * @returns The copy data, or `null` when the message is not from the bridge.
    */
   static parseConsoleMessage(event) {
     var _a;
@@ -858,19 +859,19 @@ function installPageBridge(marker, maxChars) {
 // src/webviewer/WebviewCopyChannel.ts
 var WebviewCopyChannel = class {
   /**
-   * @param store Armazenamento que receberá as cópias.
+   * @param store Store that will receive the copies.
    */
   constructor(store) {
     this.store = store;
   }
   /**
-   * Conecta o canal a um webview.
+   * Connects the channel to a webview.
    *
-   * O script é instalado imediatamente, caso a página já esteja pronta, e
-   * novamente a cada `dom-ready` para sobreviver a navegações.
+   * The script is installed immediately in case the page is already ready, and
+   * again on every `dom-ready` to survive navigations.
    *
-   * @param webview Elemento do Web viewer nativo.
-   * @returns Função que remove os listeners adicionados.
+   * @param webview Native Web viewer element.
+   * @returns Function that removes the added listeners.
    */
   connect(webview) {
     const onDomReady = () => {
@@ -891,9 +892,9 @@ var WebviewCopyChannel = class {
     };
   }
   /**
-   * Converte uma mensagem válida da ponte em uma captura armazenada.
+   * Converts a valid bridge message into a stored capture.
    *
-   * @param event Evento `console-message` do webview.
+   * @param event The webview's `console-message` event.
    */
   handleConsoleMessage(event) {
     const payload = PageBridge.parseConsoleMessage(event);
@@ -913,20 +914,20 @@ var WebviewCopyChannel = class {
 // src/webviewer/WebviewerMenuDecorator.ts
 var WebviewerMenuDecorator = class {
   /**
-   * @param store Armazenamento da última cópia.
-   * @param inserter Serviço que insere a citação na nota.
+   * @param store Storage for the latest copy.
+   * @param inserter Service that inserts the citation into the note.
    */
   constructor(store, inserter) {
     this.store = store;
     this.inserter = inserter;
   }
   /**
-   * Decora os itens do menu de contexto.
+   * Decorates the context menu items.
    *
-   * @param page Página do Web viewer que originou o menu.
-   * @param items Itens originais do menu.
-   * @param selectionText Texto selecionado no momento do clique direito.
-   * @returns A mesma lista, com o item de citação acrescentado.
+   * @param page Web viewer page that originated the menu.
+   * @param items Original menu items.
+   * @param selectionText Text selected at the time of the right-click.
+   * @returns The same list with the citation item added.
    */
   decorate(page, items, selectionText) {
     const text = asString(selectionText);
@@ -982,7 +983,7 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
     );
     this.unsubscribeStore = null;
   }
-  /** Registra eventos, comando e inicia o monitoramento do Web viewer. */
+  /** Registers events and the command, then starts monitoring the Web viewer. */
   async onload() {
     this.unsubscribeStore = this.copyStore.onRemember((copy) => {
       this.app.workspace.trigger(WEB_COPY_EVENT, copy);
@@ -1038,7 +1039,7 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
       this.webviewer.start();
     });
   }
-  /** Libera os serviços e restaura os métodos alterados no Obsidian. */
+  /** Releases the services and restores the methods changed in Obsidian. */
   onunload() {
     var _a;
     (_a = this.unsubscribeStore) == null ? void 0 : _a.call(this);
@@ -1046,7 +1047,8 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
     this.webviewer.stop();
   }
   /**
-   * Lê a seleção atual do Web viewer e insere a citação na nota ativa.
+   * Reads the current selection from the Web viewer and inserts the citation
+   * into the active note.
    */
   async citeCurrentSelection() {
     const page = this.webviewer.getCurrentPage();

@@ -7,17 +7,17 @@ import { NativeWebviewerService } from "../webviewer/NativeWebviewerService";
 import { WebviewCopyChannel } from "../webviewer/WebviewCopyChannel";
 import { WebviewerMenuDecorator } from "../webviewer/WebviewerMenuDecorator";
 
-/** Evento opcional para integrações com outros plugins. */
+/** Optional event for integrations with other plugins. */
 const WEB_COPY_EVENT = "webview-text-selector:web-copy";
 
 /**
- * Plugin que transforma texto copiado do Web viewer nativo em citações.
+ * Plugin that turns text copied from the native Web viewer into citations.
  *
- * A classe apenas compõe os serviços especializados:
- * - `WebCopyStore` guarda a última cópia;
- * - `PasteInterceptor` transforma a colagem em citação;
- * - `CitationInserter` insere o bloco na nota;
- * - `NativeWebviewerService` integra-se ao Web viewer do Obsidian.
+ * The class only composes the specialized services:
+ * - `WebCopyStore` keeps the latest copy;
+ * - `PasteInterceptor` turns pasting into a citation;
+ * - `CitationInserter` inserts the block into the note;
+ * - `NativeWebviewerService` integrates with Obsidian's Web viewer.
  */
 export default class WebviewTextSelectorPlugin extends Plugin {
   private readonly copyStore = new WebCopyStore();
@@ -41,7 +41,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
 
   private unsubscribeStore: (() => void) | null = null;
 
-  /** Registra eventos, comando e inicia o monitoramento do Web viewer. */
+  /** Registers events and the command, then starts monitoring the Web viewer. */
   async onload(): Promise<void> {
     this.unsubscribeStore = this.copyStore.onRemember((copy) => {
       this.app.workspace.trigger(WEB_COPY_EVENT, copy);
@@ -67,7 +67,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
       })
     );
 
-    // Uma cópia feita fora do Web viewer invalida a captura anterior.
+    // A copy made outside the Web viewer invalidates the previous capture.
     this.registerDomEvent(
       document,
       "copy",
@@ -105,7 +105,7 @@ export default class WebviewTextSelectorPlugin extends Plugin {
     });
   }
 
-  /** Libera os serviços e restaura os métodos alterados no Obsidian. */
+  /** Releases the services and restores the methods changed in Obsidian. */
   onunload(): void {
     this.unsubscribeStore?.();
     this.unsubscribeStore = null;
@@ -113,7 +113,8 @@ export default class WebviewTextSelectorPlugin extends Plugin {
   }
 
   /**
-   * Lê a seleção atual do Web viewer e insere a citação na nota ativa.
+   * Reads the current selection from the Web viewer and inserts the citation
+   * into the active note.
    */
   private async citeCurrentSelection(): Promise<void> {
     const page = this.webviewer.getCurrentPage();

@@ -1,32 +1,33 @@
 /**
- * Converte um valor desconhecido em string segura.
+ * Converts an unknown value into a safe string.
  *
- * Útil ao ler dados vindos da página, onde qualquer valor pode chegar por
- * `console-message` ou por APIs internas do Obsidian.
+ * Useful when reading data coming from the page, where any value may arrive
+ * through `console-message` or Obsidian's internal APIs.
  *
- * @param value Valor a converter.
- * @returns O próprio valor quando já é string; caso contrário, string vazia.
+ * @param value Value to convert.
+ * @returns The value itself when it is already a string; otherwise, an empty
+ * string.
  */
 export function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
 /**
- * Verifica se uma string possui conteúdo visível.
+ * Checks whether a string has visible content.
  *
- * @param value Texto a verificar.
+ * @param value Text to check.
  */
 export function hasVisibleText(value: string): boolean {
   return value.trim().length > 0;
 }
 
 /**
- * Normaliza diferenças de espaço em branco entre `window.getSelection()` e o
- * `text/plain` colocado na área de transferência pelo Chromium.
+ * Normalizes whitespace differences between `window.getSelection()` and the
+ * `text/plain` placed on the clipboard by Chromium.
  *
- * @param value Texto original.
- * @returns Texto sem espaços repetidos, sem caracteres invisíveis comuns e sem
- * espaços nas extremidades.
+ * @param value Original text.
+ * @returns Text without repeated spaces, without common invisible characters,
+ * and without leading or trailing whitespace.
  */
 export function normalizeForComparison(value: string): string {
   return value
@@ -37,14 +38,14 @@ export function normalizeForComparison(value: string): string {
 }
 
 /**
- * Compara o texto capturado no Web viewer com o texto que o usuário colou.
+ * Compares the text captured in the Web viewer with the text the user pasted.
  *
- * A primeira comparação ignora apenas diferenças de espaço em branco. Se ela
- * falhar, uma segunda comparação ignora também as quebras de linha inseridas
- * pelo Chromium ao montar o `text/plain` entre blocos HTML.
+ * The first comparison ignores only whitespace differences. If it fails, a
+ * second comparison also ignores the line breaks inserted by Chromium when
+ * building `text/plain` between HTML blocks.
  *
- * @param left Primeiro texto.
- * @param right Segundo texto.
+ * @param left First text.
+ * @param right Second text.
  */
 export function isSameText(left: string, right: string): boolean {
   const normalizedLeft = normalizeForComparison(left);
