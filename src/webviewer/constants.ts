@@ -8,7 +8,7 @@ export const WEBVIEWER_VIEW_TYPE = "webviewer";
  * reloaded, the script already injected into the page keeps sending copies and
  * the new plugin instance can still receive them.
  */
-export const COPY_MARKER = "[[WEBVIEW_TEXT_SELECTOR_COPY]]";
+export const COPY_MARKER = "[[WEBREF_COPY]]";
 
 /** Safety cap for text coming from the page. */
 export const MAX_TEXT_CHARS = 200_000;

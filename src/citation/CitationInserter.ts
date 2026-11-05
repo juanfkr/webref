@@ -78,7 +78,7 @@ export class CitationInserter {
       );
     } catch (error) {
       console.error(
-        "Webview Text Selector: falha ao inserir citação",
+        "WebRef: falha ao inserir citação",
         error
       );
       this.notify("Não foi possível inserir a citação na nota.");

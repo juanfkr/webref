@@ -96,7 +96,7 @@ export class WebviewerPage {
       return asString(result);
     } catch (error) {
       console.error(
-        "Webview Text Selector: falha ao ler a seleção",
+        "WebRef: falha ao ler a seleção",
         error
       );
       return "";
@@ -113,7 +113,7 @@ export class WebviewerPage {
       this.webview?.copy?.();
     } catch (error) {
       console.error(
-        "Webview Text Selector: falha ao copiar seleção",
+        "WebRef: falha ao copiar seleção",
         error
       );
     }

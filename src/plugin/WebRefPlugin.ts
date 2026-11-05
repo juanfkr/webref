@@ -8,7 +8,7 @@ import { WebviewCopyChannel } from "../webviewer/WebviewCopyChannel";
 import { WebviewerMenuDecorator } from "../webviewer/WebviewerMenuDecorator";
 
 /** Optional event for integrations with other plugins. */
-const WEB_COPY_EVENT = "webview-text-selector:web-copy";
+const WEB_COPY_EVENT = "webref:web-copy";
 
 /**
  * Plugin that turns text copied from the native Web viewer into citations.
@@ -19,7 +19,7 @@ const WEB_COPY_EVENT = "webview-text-selector:web-copy";
  * - `CitationInserter` inserts the block into the note;
  * - `NativeWebviewerService` integrates with Obsidian's Web viewer.
  */
-export default class WebviewTextSelectorPlugin extends Plugin {
+export default class WebRefPlugin extends Plugin {
   private readonly copyStore = new WebCopyStore();
 
   private readonly inserter = new CitationInserter(

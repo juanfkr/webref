@@ -100,10 +100,10 @@ export class PageBridge {
  */
 function installPageBridge(marker: string, maxChars: number): void {
   const win = window as unknown as {
-    __wvsCiteBridgeInstalled?: boolean;
+    __webrefCiteBridgeInstalled?: boolean;
   };
-  if (win.__wvsCiteBridgeInstalled) return;
-  win.__wvsCiteBridgeInstalled = true;
+  if (win.__webrefCiteBridgeInstalled) return;
+  win.__webrefCiteBridgeInstalled = true;
 
   const readSelection = (): string => {
     const active = document.activeElement as

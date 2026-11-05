@@ -28,7 +28,7 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 
-// src/plugin/WebviewTextSelectorPlugin.ts
+// src/plugin/WebRefPlugin.ts
 var import_obsidian2 = require("obsidian");
 
 // src/shared/text.ts
@@ -155,7 +155,7 @@ var CitationInserter = class {
       );
     } catch (error) {
       console.error(
-        "Webview Text Selector: falha ao inserir cita\xE7\xE3o",
+        "WebRef: falha ao inserir cita\xE7\xE3o",
         error
       );
       this.notify("N\xE3o foi poss\xEDvel inserir a cita\xE7\xE3o na nota.");
@@ -438,7 +438,7 @@ var WebviewerPatcher = class {
 
 // src/webviewer/constants.ts
 var WEBVIEWER_VIEW_TYPE = "webviewer";
-var COPY_MARKER = "[[WEBVIEW_TEXT_SELECTOR_COPY]]";
+var COPY_MARKER = "[[WEBREF_COPY]]";
 var MAX_TEXT_CHARS = 2e5;
 var MENU_ITEM_LABEL = "Inserir cita\xE7\xE3o na nota";
 
@@ -538,7 +538,7 @@ var WebviewerPage = class {
       return asString(result);
     } catch (error) {
       console.error(
-        "Webview Text Selector: falha ao ler a sele\xE7\xE3o",
+        "WebRef: falha ao ler a sele\xE7\xE3o",
         error
       );
       return "";
@@ -555,7 +555,7 @@ var WebviewerPage = class {
       (_b = (_a = this.webview) == null ? void 0 : _a.copy) == null ? void 0 : _b.call(_a);
     } catch (error) {
       console.error(
-        "Webview Text Selector: falha ao copiar sele\xE7\xE3o",
+        "WebRef: falha ao copiar sele\xE7\xE3o",
         error
       );
     }
@@ -802,9 +802,9 @@ var PageBridge = class {
 };
 function installPageBridge(marker, maxChars) {
   const win = window;
-  if (win.__wvsCiteBridgeInstalled)
+  if (win.__webrefCiteBridgeInstalled)
     return;
-  win.__wvsCiteBridgeInstalled = true;
+  win.__webrefCiteBridgeInstalled = true;
   const readSelection = () => {
     const active = document.activeElement;
     if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
@@ -961,9 +961,9 @@ var WebviewerMenuDecorator = class {
   }
 };
 
-// src/plugin/WebviewTextSelectorPlugin.ts
-var WEB_COPY_EVENT = "webview-text-selector:web-copy";
-var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
+// src/plugin/WebRefPlugin.ts
+var WEB_COPY_EVENT = "webref:web-copy";
+var WebRefPlugin = class extends import_obsidian2.Plugin {
   constructor() {
     super(...arguments);
     this.copyStore = new WebCopyStore();
@@ -1072,4 +1072,4 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
 };
 
 // src/main.ts
-var main_default = WebviewTextSelectorPlugin;
+var main_default = WebRefPlugin;
