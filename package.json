@@ -1,7 +1,7 @@
 {
   "name": "obsidian-webview-text-selector",
   "version": "1.1.0",
-  "description": "Plugin do Obsidian que transforma textos copiados do Web viewer em citações formatadas.",
+  "description": "Obsidian plugin that transforms text copied from a web viewer into formatted transactions.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

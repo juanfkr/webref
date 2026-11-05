@@ -3,7 +3,7 @@
   "name": "Webview Text Selector",
   "version": "1.1.0",
   "minAppVersion": "1.8.0",
-  "description": "Transforma textos copiados do Web viewer do Obsidian em citações prontas nas notas, com opção no botão direito.",
+  "description": "Obsidian plugin that transforms text copied from a web viewer into formatted transactions.",
   "author": "Juan",
   "isDesktopOnly": true
 }
