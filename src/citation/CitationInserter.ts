@@ -71,10 +71,9 @@ export class CitationInserter {
         this.withSurroundingBreaks(target, citation)
       );
 
-      const targetName = noteName ?? this.getTargetNoteName();
       this.notify(
-        targetName
-          ? `Citação inserida em "${targetName}".`
+        noteName
+          ? `Citação inserida em "${noteName}".`
           : "Citação inserida na nota."
       );
     } catch (error) {
@@ -108,15 +107,6 @@ export class CitationInserter {
     } catch {
       return null;
     }
-  }
-
-  /** Retorna o nome da nota de destino, quando disponível. */
-  private getTargetNoteName(): string | undefined {
-    const active = this.app.workspace.getActiveViewOfType(
-      MarkdownView
-    );
-    const target = active ?? this.lastMarkdownView;
-    return target?.file?.basename;
   }
 
   /**

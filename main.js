@@ -145,9 +145,8 @@ var CitationInserter = class {
       target.replaceSelection(
         this.withSurroundingBreaks(target, citation)
       );
-      const targetName = noteName != null ? noteName : this.getTargetNoteName();
       this.notify(
-        targetName ? `Cita\xE7\xE3o inserida em "${targetName}".` : "Cita\xE7\xE3o inserida na nota."
+        noteName ? `Cita\xE7\xE3o inserida em "${noteName}".` : "Cita\xE7\xE3o inserida na nota."
       );
     } catch (error) {
       console.error(
@@ -179,15 +178,6 @@ var CitationInserter = class {
     } catch (e) {
       return null;
     }
-  }
-  /** Retorna o nome da nota de destino, quando disponível. */
-  getTargetNoteName() {
-    var _a;
-    const active = this.app.workspace.getActiveViewOfType(
-      import_obsidian.MarkdownView
-    );
-    const target = active != null ? active : this.lastMarkdownView;
-    return (_a = target == null ? void 0 : target.file) == null ? void 0 : _a.basename;
   }
   /**
    * Garante que o bloco de citação comece e termine em linhas próprias
@@ -253,26 +243,6 @@ var PasteInterceptor = class {
   }
 };
 
-// src/citation/WebCopy.ts
-var WebCopy = class {
-  /**
-   * @param text Texto selecionado na página.
-   * @param url URL da página no momento da cópia.
-   * @param title Título da página no momento da cópia.
-   * @param capturedAt Momento da captura em milissegundos.
-   */
-  constructor(text, url, title, capturedAt = Date.now()) {
-    this.text = text;
-    this.url = url;
-    this.title = title;
-    this.capturedAt = capturedAt;
-  }
-  /** Indica se a captura possui texto utilizável. */
-  hasText() {
-    return this.text.trim().length > 0;
-  }
-};
-
 // src/citation/WebCopyStore.ts
 var WebCopyStore = class {
   constructor() {
@@ -321,13 +291,421 @@ var WebCopyStore = class {
   }
 };
 
-// src/main.ts
+// src/webviewer/constants.ts
 var WEBVIEWER_VIEW_TYPE = "webviewer";
 var COPY_MARKER = "[[WEBVIEW_TEXT_SELECTOR_COPY]]";
 var MAX_TEXT_CHARS = 2e5;
 var MENU_ITEM_LABEL = "Inserir cita\xE7\xE3o na nota";
-var WEB_COPY_EVENT = "webview-text-selector:web-copy";
-function pageBridge(marker, maxChars) {
+
+// src/citation/WebCopy.ts
+var WebCopy = class {
+  /**
+   * @param text Texto selecionado na página.
+   * @param url URL da página no momento da cópia.
+   * @param title Título da página no momento da cópia.
+   * @param capturedAt Momento da captura em milissegundos.
+   */
+  constructor(text, url, title, capturedAt = Date.now()) {
+    this.text = text;
+    this.url = url;
+    this.title = title;
+    this.capturedAt = capturedAt;
+  }
+  /** Indica se a captura possui texto utilizável. */
+  hasText() {
+    return this.text.trim().length > 0;
+  }
+};
+
+// src/webviewer/WebviewerPage.ts
+var WebviewerPage = class {
+  /**
+   * @param source Objeto interno da view `webviewer`.
+   */
+  constructor(source) {
+    this.source = source;
+  }
+  /** Retorna a view interna original. */
+  get view() {
+    return this.source;
+  }
+  /** Elemento `<webview>` atual, quando existir. */
+  get webview() {
+    return this.source.webview;
+  }
+  /** Indica se a página está sendo exibida no modo leitor. */
+  get isReaderMode() {
+    return this.source.mode === "reader";
+  }
+  /** Indica se é possível ler a seleção atual da página. */
+  get canReadSelection() {
+    var _a;
+    return this.isReaderMode || typeof ((_a = this.webview) == null ? void 0 : _a.executeJavaScript) === "function";
+  }
+  /**
+   * Cria uma captura usando a URL e o título atuais da página.
+   *
+   * @param text Texto selecionado.
+   */
+  capture(text) {
+    var _a, _b;
+    const webview = this.webview;
+    let url = "";
+    try {
+      url = asString((_a = webview == null ? void 0 : webview.getURL) == null ? void 0 : _a.call(webview));
+    } catch (e) {
+    }
+    if (!url)
+      url = asString(this.source.url);
+    let title = "";
+    try {
+      title = asString((_b = webview == null ? void 0 : webview.getTitle) == null ? void 0 : _b.call(webview));
+    } catch (e) {
+    }
+    if (!title)
+      title = asString(this.source.title);
+    return new WebCopy(
+      text.slice(0, MAX_TEXT_CHARS),
+      url.trim(),
+      title.trim() || url.trim(),
+      Date.now()
+    );
+  }
+  /**
+   * Lê a seleção atual.
+   *
+   * No modo leitor a seleção pertence ao documento do Obsidian; no modo
+   * normal ela está dentro da página carregada no webview.
+   */
+  async readSelection() {
+    var _a, _b;
+    if (this.isReaderMode) {
+      return (_b = (_a = document.getSelection()) == null ? void 0 : _a.toString()) != null ? _b : "";
+    }
+    const webview = this.webview;
+    if (!(webview == null ? void 0 : webview.executeJavaScript))
+      return "";
+    try {
+      const result = await webview.executeJavaScript(
+        "window.getSelection().toString()",
+        true
+      );
+      return asString(result);
+    } catch (error) {
+      console.error(
+        "Webview Text Selector: falha ao ler a sele\xE7\xE3o",
+        error
+      );
+      return "";
+    }
+  }
+  /**
+   * Copia a seleção atual do convidado para a área de transferência.
+   *
+   * Usado pelo item nativo "Copiar" do menu de contexto.
+   */
+  copySelectionToClipboard() {
+    var _a, _b;
+    try {
+      (_b = (_a = this.webview) == null ? void 0 : _a.copy) == null ? void 0 : _b.call(_a);
+    } catch (error) {
+      console.error(
+        "Webview Text Selector: falha ao copiar sele\xE7\xE3o",
+        error
+      );
+    }
+  }
+};
+
+// src/webviewer/NativeWebviewerService.ts
+var NativeWebviewerService = class {
+  /**
+   * @param app Aplicativo do Obsidian.
+   * @param store Armazenamento da última cópia.
+   * @param menuDecorator Decorador do menu de contexto.
+   * @param copyChannel Canal de captura das páginas.
+   */
+  constructor(app, store, menuDecorator, copyChannel) {
+    this.app = app;
+    this.store = store;
+    this.menuDecorator = menuDecorator;
+    this.copyChannel = copyChannel;
+    this.active = true;
+    this.observer = null;
+    this.patchedViews = /* @__PURE__ */ new WeakSet();
+    this.patches = [];
+    this.connectedWebviews = /* @__PURE__ */ new WeakSet();
+    this.cleanups = /* @__PURE__ */ new Set();
+    this.lastPage = null;
+  }
+  /** Inicia o monitoramento dos Web viewers abertos. */
+  start() {
+    this.active = true;
+    this.scan();
+    this.observe();
+  }
+  /** Remove listeners, observers e patches aplicados às views. */
+  stop() {
+    var _a;
+    this.active = false;
+    (_a = this.observer) == null ? void 0 : _a.disconnect();
+    this.observer = null;
+    for (const cleanup of this.cleanups) {
+      try {
+        cleanup();
+      } catch (e) {
+      }
+    }
+    this.cleanups.clear();
+    for (const patch of this.patches) {
+      try {
+        patch.restore();
+      } catch (e) {
+      }
+    }
+    this.patches = [];
+    this.lastPage = null;
+  }
+  /**
+   * Lembra a última view do Web viewer que recebeu o foco.
+   *
+   * @param leaf Leaf ativa no momento.
+   */
+  trackLeaf(leaf) {
+    const view = leaf == null ? void 0 : leaf.view;
+    if ((view == null ? void 0 : view.getViewType()) === WEBVIEWER_VIEW_TYPE) {
+      this.lastPage = new WebviewerPage(
+        view
+      );
+    }
+  }
+  /**
+   * Retorna o Web viewer ativo ou o último utilizado.
+   *
+   * @returns A página encontrada ou `null` quando não há Web viewer aberto.
+   */
+  getCurrentPage() {
+    var _a;
+    const active = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
+    if ((active == null ? void 0 : active.getViewType()) === WEBVIEWER_VIEW_TYPE) {
+      return new WebviewerPage(
+        active
+      );
+    }
+    const leaves = this.app.workspace.getLeavesOfType(
+      WEBVIEWER_VIEW_TYPE
+    );
+    const tracked = this.lastPage;
+    if (tracked && leaves.some((leaf) => leaf.view === tracked.view)) {
+      return tracked;
+    }
+    return leaves.length > 0 ? new WebviewerPage(
+      leaves[leaves.length - 1].view
+    ) : null;
+  }
+  /**
+   * Encontra e prepara todas as views do Web viewer abertas.
+   *
+   * Pode ser chamado quantas vezes for necessário; views já preparadas são
+   * apenas verificadas novamente.
+   */
+  scan() {
+    if (!this.active)
+      return;
+    for (const leaf of this.app.workspace.getLeavesOfType(
+      WEBVIEWER_VIEW_TYPE
+    )) {
+      const view = leaf.view;
+      if (!view)
+        continue;
+      this.patchView(new WebviewerPage(view));
+    }
+  }
+  /**
+   * Trata cópias feitas no documento do Obsidian.
+   *
+   * Fora do modo leitor, qualquer cópia no aplicativo invalida a captura
+   * anterior. No modo leitor a seleção fica no documento do Obsidian, então
+   * ela é registrada aqui.
+   */
+  handleHostCopy() {
+    var _a, _b;
+    if (!this.active)
+      return;
+    const page = this.getActivePage();
+    if (!page || !page.isReaderMode) {
+      this.store.clear();
+      return;
+    }
+    const text = (_b = (_a = document.getSelection()) == null ? void 0 : _a.toString()) != null ? _b : "";
+    if (!text.trim()) {
+      this.store.clear();
+      return;
+    }
+    this.store.remember(page.capture(text));
+  }
+  /** Retorna a página somente quando o Web viewer está realmente ativo. */
+  getActivePage() {
+    var _a;
+    const view = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
+    if ((view == null ? void 0 : view.getViewType()) !== WEBVIEWER_VIEW_TYPE)
+      return null;
+    return new WebviewerPage(
+      view
+    );
+  }
+  /**
+   * Observa o documento para descobrir novos elementos `<webview>`.
+   *
+   * O observer cobre os casos em que uma view é montada sem uma mudança de
+   * layout perceptível. Os eventos do workspace continuam sendo usados como
+   * reforço.
+   */
+  observe() {
+    if (this.observer || !document.body)
+      return;
+    this.observer = new MutationObserver((mutations) => {
+      var _a;
+      if (!this.active)
+        return;
+      for (const mutation of mutations) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (!(node instanceof HTMLElement))
+            continue;
+          if (node.tagName === "WEBVIEW" || ((_a = node.querySelector) == null ? void 0 : _a.call(node, "webview"))) {
+            this.scan();
+            return;
+          }
+        }
+      }
+    });
+    this.observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+  /**
+   * Envolve os métodos internos da view e conecta o webview atual.
+   *
+   * @param page Página a preparar.
+   */
+  patchView(page) {
+    const view = page.view;
+    if (!this.patchedViews.has(view)) {
+      this.patchedViews.add(view);
+      const restoreCallbacks = [];
+      if (typeof view.instantiateWebView === "function") {
+        const original = view.instantiateWebView;
+        const wrapper = (...args) => {
+          const result = original.apply(view, args);
+          this.hookWebview(page);
+          return result;
+        };
+        view.instantiateWebView = wrapper;
+        restoreCallbacks.push(() => {
+          if (view.instantiateWebView === wrapper) {
+            view.instantiateWebView = original;
+          }
+        });
+      }
+      if (typeof view.contextMenuItemsForSelection === "function") {
+        const original = view.contextMenuItemsForSelection;
+        const wrapper = (selectionText, isEditable) => {
+          const items = original.call(view, selectionText, isEditable);
+          return this.menuDecorator.decorate(
+            page,
+            Array.isArray(items) ? items : [],
+            selectionText
+          );
+        };
+        view.contextMenuItemsForSelection = wrapper;
+        restoreCallbacks.push(() => {
+          if (view.contextMenuItemsForSelection === wrapper) {
+            view.contextMenuItemsForSelection = original;
+          }
+        });
+      }
+      this.patches.push({
+        restore: () => {
+          for (const restore of restoreCallbacks)
+            restore();
+        }
+      });
+    }
+    this.hookWebview(page);
+  }
+  /**
+   * Conecta o canal de cópia ao `<webview>` atual da página.
+   *
+   * @param page Página cujo webview será conectado.
+   */
+  hookWebview(page) {
+    if (!this.active)
+      return;
+    const webview = page.webview;
+    if (!webview)
+      return;
+    if (this.connectedWebviews.has(webview))
+      return;
+    this.connectedWebviews.add(webview);
+    this.cleanups.add(this.copyChannel.connect(webview));
+  }
+};
+
+// src/webviewer/PageBridge.ts
+var PageBridge = class {
+  /**
+   * Instala o script de captura na página atual do webview.
+   *
+   * A instalação é idempotente: o próprio script ignora chamadas repetidas.
+   *
+   * @param webview Elemento do Web viewer nativo.
+   */
+  static install(webview) {
+    if (typeof webview.executeJavaScript !== "function")
+      return;
+    const script = `(${String(installPageBridge)})(${JSON.stringify(
+      COPY_MARKER
+    )}, ${MAX_TEXT_CHARS});`;
+    try {
+      const result = webview.executeJavaScript(script, true);
+      if (result && typeof result.catch === "function") {
+        result.catch(() => void 0);
+      }
+    } catch (e) {
+    }
+  }
+  /**
+   * Lê e valida uma mensagem recebida pelo evento `console-message`.
+   *
+   * @param event Evento emitido pelo `<webview>`.
+   * @returns Os dados da cópia ou `null` quando a mensagem não é da ponte.
+   */
+  static parseConsoleMessage(event) {
+    var _a;
+    const payload = event;
+    const message = typeof payload.message === "string" ? payload.message : typeof ((_a = payload.details) == null ? void 0 : _a.message) === "string" ? payload.details.message : "";
+    const markerIndex = message.indexOf(COPY_MARKER);
+    if (markerIndex === -1)
+      return null;
+    try {
+      const data = JSON.parse(
+        message.slice(markerIndex + COPY_MARKER.length)
+      );
+      const text = asString(data.text);
+      if (!text.trim())
+        return null;
+      return {
+        text: text.slice(0, MAX_TEXT_CHARS),
+        url: asString(data.url),
+        title: asString(data.title)
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+};
+function installPageBridge(marker, maxChars) {
   const win = window;
   if (win.__wvsCiteBridgeInstalled)
     return;
@@ -382,28 +760,139 @@ function pageBridge(marker, maxChars) {
     true
   );
 }
+
+// src/webviewer/WebviewCopyChannel.ts
+var WebviewCopyChannel = class {
+  /**
+   * @param store Armazenamento que receberá as cópias.
+   */
+  constructor(store) {
+    this.store = store;
+  }
+  /**
+   * Conecta o canal a um webview.
+   *
+   * O script é instalado imediatamente, caso a página já esteja pronta, e
+   * novamente a cada `dom-ready` para sobreviver a navegações.
+   *
+   * @param webview Elemento do Web viewer nativo.
+   * @returns Função que remove os listeners adicionados.
+   */
+  connect(webview) {
+    const onDomReady = () => {
+      PageBridge.install(webview);
+    };
+    const onConsoleMessage = (event) => {
+      this.handleConsoleMessage(event);
+    };
+    webview.addEventListener("dom-ready", onDomReady);
+    webview.addEventListener("console-message", onConsoleMessage);
+    PageBridge.install(webview);
+    return () => {
+      webview.removeEventListener("dom-ready", onDomReady);
+      webview.removeEventListener(
+        "console-message",
+        onConsoleMessage
+      );
+    };
+  }
+  /**
+   * Converte uma mensagem válida da ponte em uma captura armazenada.
+   *
+   * @param event Evento `console-message` do webview.
+   */
+  handleConsoleMessage(event) {
+    const payload = PageBridge.parseConsoleMessage(event);
+    if (!payload)
+      return;
+    this.store.remember(
+      new WebCopy(
+        payload.text,
+        payload.url,
+        payload.title,
+        Date.now()
+      )
+    );
+  }
+};
+
+// src/webviewer/WebviewerMenuDecorator.ts
+var WebviewerMenuDecorator = class {
+  /**
+   * @param store Armazenamento da última cópia.
+   * @param inserter Serviço que insere a citação na nota.
+   */
+  constructor(store, inserter) {
+    this.store = store;
+    this.inserter = inserter;
+  }
+  /**
+   * Decora os itens do menu de contexto.
+   *
+   * @param page Página do Web viewer que originou o menu.
+   * @param items Itens originais do menu.
+   * @param selectionText Texto selecionado no momento do clique direito.
+   * @returns A mesma lista, com o item de citação acrescentado.
+   */
+  decorate(page, items, selectionText) {
+    const text = asString(selectionText);
+    if (!text.trim())
+      return items;
+    const copy = page.capture(text);
+    const copyIndex = items.findIndex(
+      (item) => item && item.role === "copy"
+    );
+    if (copyIndex !== -1 && !page.isReaderMode) {
+      const copyItem = items[copyIndex];
+      delete copyItem.role;
+      copyItem.click = () => {
+        this.store.remember(copy);
+        page.copySelectionToClipboard();
+      };
+    }
+    const citeItem = {
+      label: MENU_ITEM_LABEL,
+      click: () => {
+        this.store.remember(copy);
+        this.inserter.insert(copy);
+      }
+    };
+    items.splice(
+      copyIndex !== -1 ? copyIndex + 1 : items.length,
+      0,
+      citeItem
+    );
+    return items;
+  }
+};
+
+// src/main.ts
+var WEB_COPY_EVENT = "webview-text-selector:web-copy";
 var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
   constructor() {
     super(...arguments);
     this.copyStore = new WebCopyStore();
-    this.formatter = new CitationFormatter();
     this.inserter = new CitationInserter(
       this.app,
-      this.formatter
+      new CitationFormatter()
     );
     this.pasteInterceptor = new PasteInterceptor(
       this.copyStore,
       this.inserter
     );
-    this.lastWebviewerView = null;
-    this.active = true;
-    this.observer = null;
-    this.patchedViews = /* @__PURE__ */ new WeakSet();
-    this.patches = [];
-    this.hookedWebviews = /* @__PURE__ */ new WeakSet();
-    this.webviewCleanups = /* @__PURE__ */ new Set();
+    this.webviewer = new NativeWebviewerService(
+      this.app,
+      this.copyStore,
+      new WebviewerMenuDecorator(this.copyStore, this.inserter),
+      new WebviewCopyChannel(this.copyStore)
+    );
+    this.unsubscribeStore = null;
   }
+  /** Registra eventos, comando e inicia o monitoramento do Web viewer. */
   async onload() {
+    this.unsubscribeStore = this.copyStore.onRemember((copy) => {
+      this.app.workspace.trigger(WEB_COPY_EVENT, copy);
+    });
     this.registerEvent(
       this.app.workspace.on("editor-paste", (evt, editor, info) => {
         this.pasteInterceptor.handle(evt, editor, info);
@@ -411,20 +900,21 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
     );
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
-        this.trackLeaf(leaf);
-        this.scanWebviewers();
+        this.inserter.trackLeaf(leaf);
+        this.webviewer.trackLeaf(leaf);
+        this.webviewer.scan();
       })
     );
     this.registerEvent(
       this.app.workspace.on("layout-change", () => {
-        this.scanWebviewers();
+        this.webviewer.scan();
       })
     );
     this.registerDomEvent(
       document,
       "copy",
       () => {
-        this.handleHostCopy();
+        this.webviewer.handleHostCopy();
       },
       true
     );
@@ -440,355 +930,44 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
       id: "cite-web-viewer-selection",
       name: "Inserir cita\xE7\xE3o da sele\xE7\xE3o atual do Web viewer",
       checkCallback: (checking) => {
-        const available = this.getWebviewerView() !== null;
-        if (!available)
+        const page = this.webviewer.getCurrentPage();
+        if (!page)
           return false;
         if (!checking)
-          void this.citeCurrentSelection();
+          void this.insertCitationFromSelection(page);
         return true;
       }
     });
     this.app.workspace.onLayoutReady(() => {
       this.inserter.trackActiveView();
-      this.trackLeaf(this.app.workspace.activeLeaf);
-      this.scanWebviewers();
-      this.observeWebviews();
+      this.webviewer.trackLeaf(this.app.workspace.activeLeaf);
+      this.webviewer.start();
     });
   }
+  /** Libera os serviços e restaura os métodos alterados no Obsidian. */
   onunload() {
     var _a;
-    this.active = false;
-    (_a = this.observer) == null ? void 0 : _a.disconnect();
-    this.observer = null;
-    for (const cleanup of this.webviewCleanups) {
-      try {
-        cleanup();
-      } catch (e) {
-      }
-    }
-    this.webviewCleanups.clear();
-    for (const patch of this.patches) {
-      try {
-        patch.restore();
-      } catch (e) {
-      }
-    }
-    this.patches = [];
-  }
-  // ---------------------------------------------------------------------
-  // Captura no Web viewer nativo
-  // ---------------------------------------------------------------------
-  trackLeaf(leaf) {
-    var _a;
-    if (!leaf)
-      return;
-    this.inserter.trackLeaf(leaf);
-    if (((_a = leaf.view) == null ? void 0 : _a.getViewType()) === WEBVIEWER_VIEW_TYPE) {
-      this.lastWebviewerView = leaf.view;
-    }
-  }
-  observeWebviews() {
-    if (this.observer || !document.body)
-      return;
-    this.observer = new MutationObserver((mutations) => {
-      var _a;
-      if (!this.active)
-        return;
-      for (const mutation of mutations) {
-        for (const node of Array.from(mutation.addedNodes)) {
-          if (!(node instanceof HTMLElement))
-            continue;
-          if (node.tagName === "WEBVIEW" || ((_a = node.querySelector) == null ? void 0 : _a.call(node, "webview"))) {
-            this.scanWebviewers();
-            return;
-          }
-        }
-      }
-    });
-    this.observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }
-  scanWebviewers() {
-    if (!this.active)
-      return;
-    for (const leaf of this.app.workspace.getLeavesOfType(
-      WEBVIEWER_VIEW_TYPE
-    )) {
-      const view = leaf.view;
-      if (!view)
-        continue;
-      this.patchWebviewerView(view);
-    }
-  }
-  patchWebviewerView(view) {
-    if (!this.patchedViews.has(view)) {
-      this.patchedViews.add(view);
-      const restoreCallbacks = [];
-      if (typeof view.instantiateWebView === "function") {
-        const original = view.instantiateWebView;
-        const wrapper = (...args) => {
-          const result = original.apply(view, args);
-          this.hookWebview(view);
-          return result;
-        };
-        view.instantiateWebView = wrapper;
-        restoreCallbacks.push(() => {
-          if (view.instantiateWebView === wrapper) {
-            view.instantiateWebView = original;
-          }
-        });
-      }
-      if (typeof view.contextMenuItemsForSelection === "function") {
-        const original = view.contextMenuItemsForSelection;
-        const wrapper = (selectionText, isEditable) => {
-          const items = original.call(view, selectionText, isEditable);
-          return this.decorateContextMenu(
-            view,
-            Array.isArray(items) ? items : [],
-            selectionText
-          );
-        };
-        view.contextMenuItemsForSelection = wrapper;
-        restoreCallbacks.push(() => {
-          if (view.contextMenuItemsForSelection === wrapper) {
-            view.contextMenuItemsForSelection = original;
-          }
-        });
-      }
-      this.patches.push({
-        restore: () => {
-          for (const restore of restoreCallbacks)
-            restore();
-        }
-      });
-    }
-    this.hookWebview(view);
-  }
-  hookWebview(view) {
-    if (!this.active)
-      return;
-    const webview = view.webview;
-    if (!webview)
-      return;
-    if (!this.hookedWebviews.has(webview)) {
-      this.hookedWebviews.add(webview);
-      const onDomReady = () => {
-        this.injectBridge(webview);
-      };
-      const onConsoleMessage = (event) => {
-        this.handleConsoleMessage(event);
-      };
-      webview.addEventListener("dom-ready", onDomReady);
-      webview.addEventListener("console-message", onConsoleMessage);
-      const cleanup = () => {
-        webview.removeEventListener("dom-ready", onDomReady);
-        webview.removeEventListener("console-message", onConsoleMessage);
-      };
-      this.webviewCleanups.add(cleanup);
-    }
-    this.injectBridge(webview);
-  }
-  injectBridge(webview) {
-    if (!this.active || typeof webview.executeJavaScript !== "function") {
-      return;
-    }
-    const script = `(${String(pageBridge)})(${JSON.stringify(
-      COPY_MARKER
-    )}, ${JSON.stringify(MAX_TEXT_CHARS)});`;
-    try {
-      const result = webview.executeJavaScript(script, true);
-      if (result && typeof result.catch === "function") {
-        result.catch(() => void 0);
-      }
-    } catch (e) {
-    }
-  }
-  handleConsoleMessage(event) {
-    var _a;
-    if (!this.active)
-      return;
-    const payload = event;
-    const message = typeof payload.message === "string" ? payload.message : typeof ((_a = payload.details) == null ? void 0 : _a.message) === "string" ? payload.details.message : "";
-    const index = message.indexOf(COPY_MARKER);
-    if (index === -1)
-      return;
-    try {
-      const data = JSON.parse(
-        message.slice(index + COPY_MARKER.length)
-      );
-      const text = asString(data.text);
-      if (!text.trim())
-        return;
-      this.rememberWebCopy(
-        new WebCopy(
-          text.slice(0, MAX_TEXT_CHARS),
-          asString(data.url),
-          asString(data.title),
-          Date.now()
-        )
-      );
-    } catch (e) {
-    }
-  }
-  handleHostCopy() {
-    var _a, _b, _c;
-    if (!this.active)
-      return;
-    const activeView = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
-    const isReaderWebviewer = (activeView == null ? void 0 : activeView.getViewType()) === WEBVIEWER_VIEW_TYPE && activeView.mode === "reader";
-    if (!isReaderWebviewer) {
-      this.copyStore.clear();
-      return;
-    }
-    const text = (_c = (_b = document.getSelection()) == null ? void 0 : _b.toString()) != null ? _c : "";
-    if (!text.trim()) {
-      this.copyStore.clear();
-      return;
-    }
-    this.rememberWebCopy(
-      this.webCopyFromView(
-        activeView,
-        text
-      )
-    );
-  }
-  rememberWebCopy(copy) {
-    if (!copy.hasText())
-      return;
-    this.copyStore.remember(copy);
-    this.app.workspace.trigger(WEB_COPY_EVENT, copy);
-  }
-  // ---------------------------------------------------------------------
-  // Menu de contexto do Web viewer
-  // ---------------------------------------------------------------------
-  decorateContextMenu(view, items, selectionText) {
-    const text = asString(selectionText);
-    if (!text.trim())
-      return items;
-    const copy = this.webCopyFromView(view, text);
-    const isReader = view.mode === "reader";
-    const copyIndex = items.findIndex(
-      (item) => item && item.role === "copy"
-    );
-    if (copyIndex !== -1 && !isReader) {
-      const copyItem = items[copyIndex];
-      delete copyItem.role;
-      copyItem.click = () => {
-        var _a, _b;
-        this.rememberWebCopy(copy);
-        try {
-          (_b = (_a = view.webview) == null ? void 0 : _a.copy) == null ? void 0 : _b.call(_a);
-        } catch (error) {
-          console.error(
-            "Webview Text Selector: falha ao copiar sele\xE7\xE3o",
-            error
-          );
-        }
-      };
-    }
-    const citeItem = {
-      label: MENU_ITEM_LABEL,
-      click: () => {
-        this.rememberWebCopy(copy);
-        this.inserter.insert(copy);
-      }
-    };
-    items.splice(
-      copyIndex !== -1 ? copyIndex + 1 : items.length,
-      0,
-      citeItem
-    );
-    return items;
-  }
-  webCopyFromView(view, text) {
-    var _a, _b;
-    const webview = view.webview;
-    let url = "";
-    let title = "";
-    try {
-      url = asString((_a = webview == null ? void 0 : webview.getURL) == null ? void 0 : _a.call(webview));
-    } catch (e) {
-    }
-    if (!url)
-      url = asString(view.url);
-    try {
-      title = asString((_b = webview == null ? void 0 : webview.getTitle) == null ? void 0 : _b.call(webview));
-    } catch (e) {
-    }
-    if (!title)
-      title = asString(view.title);
-    return new WebCopy(
-      text.slice(0, MAX_TEXT_CHARS),
-      url.trim(),
-      title.trim() || url.trim(),
-      Date.now()
-    );
-  }
-  // ---------------------------------------------------------------------
-  // Colagem na nota
-  // ---------------------------------------------------------------------
-  getWebviewerView() {
-    var _a;
-    const active = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
-    if (active && active.getViewType() === WEBVIEWER_VIEW_TYPE) {
-      return active;
-    }
-    const leaves = this.app.workspace.getLeavesOfType(
-      WEBVIEWER_VIEW_TYPE
-    );
-    const tracked = this.lastWebviewerView;
-    if (tracked && leaves.some((leaf) => leaf.view === tracked)) {
-      return tracked;
-    }
-    return leaves.length > 0 ? leaves[leaves.length - 1].view : null;
+    (_a = this.unsubscribeStore) == null ? void 0 : _a.call(this);
+    this.unsubscribeStore = null;
+    this.webviewer.stop();
   }
   /**
-   * Comando de apoio: lê a seleção atual direto do Web viewer (incluindo
-   * o modo leitor) e insere a citação na última nota Markdown ativa.
+   * Lê a seleção atual do Web viewer e insere a citação na nota ativa.
+   *
+   * @param page Página de onde a seleção será lida.
    */
-  async citeCurrentSelection() {
-    var _a, _b;
-    const view = this.getWebviewerView();
-    if (!view) {
-      new import_obsidian2.Notice(
-        "Abra uma p\xE1gina no Web viewer nativo."
-      );
+  async insertCitationFromSelection(page) {
+    if (!page.canReadSelection) {
+      new import_obsidian2.Notice("O Web viewer ainda n\xE3o terminou de carregar.");
       return;
     }
-    let text = "";
-    if (view.mode === "reader") {
-      text = (_b = (_a = document.getSelection()) == null ? void 0 : _a.toString()) != null ? _b : "";
-    } else {
-      const webview = view.webview;
-      if (!(webview == null ? void 0 : webview.executeJavaScript)) {
-        new import_obsidian2.Notice(
-          "O Web viewer ainda n\xE3o terminou de carregar."
-        );
-        return;
-      }
-      try {
-        const result = await webview.executeJavaScript(
-          "window.getSelection().toString()",
-          true
-        );
-        text = asString(result);
-      } catch (error) {
-        console.error(
-          "Webview Text Selector: falha ao ler a sele\xE7\xE3o",
-          error
-        );
-      }
-    }
+    const text = await page.readSelection();
     if (!text.trim()) {
-      new import_obsidian2.Notice(
-        "Selecione um texto no Web viewer nativo."
-      );
+      new import_obsidian2.Notice("Selecione um texto no Web viewer nativo.");
       return;
     }
-    const copy = this.webCopyFromView(view, text);
-    this.rememberWebCopy(copy);
+    const copy = page.capture(text);
+    this.copyStore.remember(copy);
     this.inserter.insert(copy);
   }
 };
