@@ -1,4 +1,4 @@
-# Webview Text Selector
+# WebRef
 
 Turn text you read in Obsidian's **Web viewer** into ready-made citations in your notes.
 
@@ -32,7 +32,7 @@ The citation is inserted at the cursor of the last note you were in.
 
 Search for:
 
-> **Webview Text Selector: Inserir citação da seleção atual do Web viewer**
+> **WebRef: Inserir citação da seleção atual do Web viewer**
 
 This command reads the current selection in the Web viewer and inserts the citation into the last note. You can assign a keyboard shortcut to it if you prefer.
 
@@ -66,10 +66,10 @@ In the terminal, inside the plugin folder:
 2. Copy `main.js` and `manifest.json` to:
 
    ```
-   <YourVault>/.obsidian/plugins/webview-text-selector/
+   <YourVault>/.obsidian/plugins/webref/
    ```
 
-3. In Obsidian, open **Settings → Community plugins** and enable **Webview Text Selector**.
+3. In Obsidian, open **Settings → Community plugins** and enable **WebRef**.
 
 If you were already using version 1.0, you can delete the `styles.css` file from the plugin folder: it is no longer needed.
 
