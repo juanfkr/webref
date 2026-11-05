@@ -1,9 +1,9 @@
 {
-  "id": "webview-text-selector",
-  "name": "Webview Text Selector",
+  "id": "webref",
+  "name": "WebRef",
   "version": "1.1.0",
   "minAppVersion": "1.8.0",
-  "description": "Obsidian plugin that transforms text copied from a web viewer into formatted transactions.",
+  "description": "Obsidian plugin that transforms text copied from a web viewer into formatted citations.",
   "author": "Juan",
   "isDesktopOnly": true
 }

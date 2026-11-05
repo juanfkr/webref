@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-webview-text-selector",
+  "name": "obsidian-webref",
   "version": "1.1.0",
-  "description": "Obsidian plugin that transforms text copied from a web viewer into formatted transactions.",
+  "description": "Obsidian plugin that transforms text copied from a web viewer into formatted citations.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

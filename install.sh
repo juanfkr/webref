@@ -7,7 +7,7 @@ if [ $# -lt 1 ]; then
 fi
 
 VAULT="$1"
-PLUGIN_ID="webview-text-selector"
+PLUGIN_ID="webref"
 DEST="$VAULT/.obsidian/plugins/$PLUGIN_ID"
 
 if [ ! -d "$VAULT/.obsidian" ]; then
