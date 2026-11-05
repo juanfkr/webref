@@ -6,7 +6,6 @@ import { WebCopyStore } from "../citation/WebCopyStore";
 import { NativeWebviewerService } from "../webviewer/NativeWebviewerService";
 import { WebviewCopyChannel } from "../webviewer/WebviewCopyChannel";
 import { WebviewerMenuDecorator } from "../webviewer/WebviewerMenuDecorator";
-import type { WebviewerPage } from "../webviewer/WebviewerPage";
 
 /** Evento opcional para integrações com outros plugins. */
 const WEB_COPY_EVENT = "webview-text-selector:web-copy";
@@ -91,10 +90,10 @@ export default class WebviewTextSelectorPlugin extends Plugin {
       id: "cite-web-viewer-selection",
       name: "Inserir citação da seleção atual do Web viewer",
       checkCallback: (checking) => {
-        const page = this.webviewer.getCurrentPage();
-        if (!page) return false;
+        const available = this.webviewer.getCurrentPage() !== null;
+        if (!available) return false;
 
-        if (!checking) void this.insertCitationFromSelection(page);
+        if (!checking) void this.citeCurrentSelection();
         return true;
       },
     });
@@ -115,12 +114,14 @@ export default class WebviewTextSelectorPlugin extends Plugin {
 
   /**
    * Lê a seleção atual do Web viewer e insere a citação na nota ativa.
-   *
-   * @param page Página de onde a seleção será lida.
    */
-  private async insertCitationFromSelection(
-    page: WebviewerPage
-  ): Promise<void> {
+  private async citeCurrentSelection(): Promise<void> {
+    const page = this.webviewer.getCurrentPage();
+    if (!page) {
+      new Notice("Abra uma página no Web viewer nativo.");
+      return;
+    }
+
     if (!page.canReadSelection) {
       new Notice("O Web viewer ainda não terminou de carregar.");
       return;

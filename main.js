@@ -1024,11 +1024,11 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
       id: "cite-web-viewer-selection",
       name: "Inserir cita\xE7\xE3o da sele\xE7\xE3o atual do Web viewer",
       checkCallback: (checking) => {
-        const page = this.webviewer.getCurrentPage();
-        if (!page)
+        const available = this.webviewer.getCurrentPage() !== null;
+        if (!available)
           return false;
         if (!checking)
-          void this.insertCitationFromSelection(page);
+          void this.citeCurrentSelection();
         return true;
       }
     });
@@ -1047,10 +1047,13 @@ var WebviewTextSelectorPlugin = class extends import_obsidian2.Plugin {
   }
   /**
    * Lê a seleção atual do Web viewer e insere a citação na nota ativa.
-   *
-   * @param page Página de onde a seleção será lida.
    */
-  async insertCitationFromSelection(page) {
+  async citeCurrentSelection() {
+    const page = this.webviewer.getCurrentPage();
+    if (!page) {
+      new import_obsidian2.Notice("Abra uma p\xE1gina no Web viewer nativo.");
+      return;
+    }
     if (!page.canReadSelection) {
       new import_obsidian2.Notice("O Web viewer ainda n\xE3o terminou de carregar.");
       return;
