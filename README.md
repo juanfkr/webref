@@ -1,117 +1,109 @@
 # Webview Text Selector
 
-Plugin para **Obsidian desktop** que transforma texto copiado do **Web viewer nativo** em uma citação formatada na nota.
+Transforme textos que você lê no **Web viewer** do Obsidian em citações prontas nas suas notas.
 
-O plugin não abre um navegador próprio: ele se integra ao Web viewer que já vem no Obsidian (`viewType: "webviewer"`).
+O plugin não abre outro navegador: ele usa o Web viewer que já faz parte do Obsidian.
+
+## O que você ganha
+
+- Copiou um texto no Web viewer? Ao colar na nota, ele vira uma citação formatada.
+- Também dá para citar pelo botão direito, sem precisar copiar e colar.
+- A citação já vem com o link da página, sem data, hora ou texto extra no final.
+- Nenhuma configuração é necessária.
 
 ## Como usar
 
-### 1. Copiar e colar
+### 1. Copiando e colando
 
-1. Abra uma página no **Web viewer nativo** do Obsidian.
-2. Selecione o texto desejado e pressione `Ctrl+C` (`Cmd+C` no macOS).
-3. Vá para a nota e pressione `Ctrl+V` (`Cmd+V`).
+1. Abra a página no Web viewer.
+2. Selecione o texto e pressione `Ctrl+C` (`Cmd+C` no Mac).
+3. Abra a nota, coloque o cursor onde quiser a citação e pressione `Ctrl+V` (`Cmd+V` no Mac).
 
-Em vez do texto puro, o plugin insere:
+### 2. Pelo botão direito
+
+1. Selecione o texto no Web viewer.
+2. Clique com o botão direito.
+3. Escolha **Inserir citação na nota**.
+
+A citação é inserida no cursor da última nota em que você estava.
+
+### 3. Pela paleta de comandos
+
+Procure por:
+
+> **Webview Text Selector: Inserir citação da seleção atual do Web viewer**
+
+Esse comando lê a seleção que está no Web viewer e insere a citação na última nota. Ele pode receber um atalho de teclado, se você preferir.
+
+## Como fica a citação
 
 ```markdown
-> primeira linha da citação
-> segunda linha da citação
+> primeira linha do texto
+> segunda linha do texto
 >
 > [Título da página](<https://exemplo.com/pagina>)
 ```
 
-O rodapé contém **apenas o hyperlink formatado**, sem data nem hora.
+- Cada linha do texto selecionado recebe um `>`.
+- O link da página fica no final, com o título entre colchetes.
+- Não há data nem hora.
+- Se o cursor estiver no meio de um parágrafo, o plugin ajusta as quebras de linha para a citação ficar organizada.
 
-### 2. Menu de contexto do Web viewer
+## Instalação
 
-1. Selecione o texto no Web viewer nativo.
-2. Clique com o botão direito.
-3. Escolha **Inserir citação na nota**.
+### Com o script
 
-A citação é inserida no cursor da última nota Markdown ativa.
-
-> O item também aparece no modo leitor do Web viewer nativo.
-
-### Comando opcional
-
-A paleta de comandos oferece:
-
-- **Webview Text Selector: Inserir citação da seleção atual do Web viewer**
-
-Ele lê a seleção diretamente do Web viewer (inclusive no modo leitor) e insere na última nota ativa. Pode ser usado para criar um atalho.
-
-## Formato da citação
-
-- Cada linha do texto selecionado recebe o prefixo `>`.
-- Uma linha `>` em branco separa o texto da fonte.
-- A fonte é um link Markdown com o título da página e a URL entre `<...>`.
-- Não há data, hora, travessão ou texto adicional no rodapé.
-- Se o cursor estiver no meio de um parágrafo, o plugin adiciona quebras de linha para o bloco começar e terminar em linhas próprias.
-
-## Instalação manual
-
-```bash
-npm install
-npm run build
-```
-
-Copie `main.js` e `manifest.json` para:
-
-```
-<SeuVault>/.obsidian/plugins/webview-text-selector/
-```
-
-Depois ative o plugin em **Configurações → Plugins da comunidade**.
-
-Ou use o script, que compila e copia os arquivos:
+No terminal, dentro da pasta do plugin:
 
 ```bash
 ./install.sh /caminho/do/seu/vault
 ```
 
-Para desenvolver, crie um link simbólico da pasta do projeto dentro de
-`.obsidian/plugins/` e rode `npm run dev` para rebuild automático.
+### Manualmente
+
+1. Gere os arquivos com `npm install` e `npm run build`.
+2. Copie `main.js` e `manifest.json` para:
+
+   ```
+   <SeuVault>/.obsidian/plugins/webview-text-selector/
+   ```
+
+3. No Obsidian, abra **Configurações → Plugins da comunidade** e ative o **Webview Text Selector**.
+
+Se você já usava a versão 1.0, pode apagar o arquivo `styles.css` da pasta do plugin: ele não é mais necessário.
 
 ## Requisitos
 
-- Obsidian desktop 1.8.0 ou superior, com o **Web viewer** nativo habilitado.
-- Não funciona no Obsidian mobile.
+- Obsidian para computador, versão **1.8.0** ou mais recente.
+- O recurso **Web viewer** precisa estar habilitado no Obsidian.
+- Não funciona no Obsidian para celular.
 
-## Como funciona
+## Quando algo não funcionar
 
-O Web viewer nativo cria um `<webview>` do Electron e o expõe como `leaf.view.webview`. O Obsidian força `sandbox` e remove preloads, então não há `ipcRenderer` disponível na página.
+- **O item do botão direito não aparece:** use o atalho de copiar e colar ou o comando da paleta.
+- **A colagem entrou como texto normal:** alguns sites mudam o texto ao copiar. Nesse caso, o plugin prefere não alterar o que você colou.
+- **O texto estava dentro de uma área incorporada da página:** esse tipo de conteúdo pode não ser reconhecido.
+- **Nenhuma nota está aberta:** abra uma nota em Markdown antes de usar o item do menu.
 
-Para capturar o texto:
+## Privacidade
 
-1. No evento `dom-ready` de cada `<webview>`, o plugin injeta um pequeno script com `executeJavaScript()`.
-2. O script escuta o evento `copy` (e `Ctrl+C` como reforço), lê `window.getSelection()` — ou `selectionStart/End` de inputs e textareas — e envia o texto ao host por `console.log` com um marcador fixo.
-3. O host escuta `console-message` e guarda a última cópia do Web viewer.
-4. Ao colar em uma nota, o evento `editor-paste` do Obsidian compara o texto da área de transferência com a última cópia (ignorando diferenças de espaços/quebras) e, se bater, chama `preventDefault()` e insere a citação formatada.
+O plugin trabalha apenas dentro do Obsidian. O texto copiado não é enviado para nenhum servidor e fica somente no seu computador.
 
-Para o item de menu:
+## Como funciona, em resumo
 
-- O plugin envolve `view.contextMenuItemsForSelection()` — API interna do Web viewer — para acrescentar **Inserir citação na nota**.
-- Se essa API mudar em uma versão futura do Obsidian, o fluxo de copiar/colar e o comando da paleta continuam funcionando.
+O plugin percebe quando você copia um texto no Web viewer e guarda essa informação. Na hora de colar em uma nota, se o texto for o mesmo, ele monta a citação em vez de colar o texto solto. Fora das notas, a colagem continua funcionando normalmente.
 
-A captura é invalidada quando você copia ou recorta algo fora do Web viewer, evitando que uma cópia antiga interfira em colagens comuns.
+## Estrutura do projeto
 
-## Limitações
-
-- Depende do Web viewer nativo e de APIs internas do Obsidian para o item de menu.
-- Texto selecionado dentro de **iframes** não é capturado (o script é injetado apenas no frame principal).
-- Se um site alterar o conteúdo da área de transferência ao copiar (por exemplo, acrescentando atribuição), a comparação pode falhar e a colagem cai no comportamento normal.
-- O plugin só intercepta colagens em editores Markdown.
-
-## Estrutura
+Para quem quiser entender ou contribuir com o código:
 
 ```
-.
-├── manifest.json
-├── esbuild.config.mjs
-├── install.sh
-├── src
-│   ├── main.ts   # integração com o Web viewer, captura, menu e citação
-│   └── types.ts  # tipos da integração
-└── versions.json
+src/
+├── citation/   # formatação, armazenamento e inserção das citações
+├── webviewer/  # integração com o Web viewer do Obsidian
+├── plugin/     # composição geral do plugin
+├── shared/     # tipos e utilidades compartilhadas
+└── main.ts     # ponto de entrada
 ```
+
+O código está comentado para facilitar a leitura.
