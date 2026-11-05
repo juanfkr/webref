@@ -1,110 +1,110 @@
 # Webview Text Selector
 
-Transforme textos que você lê no **Web viewer** do Obsidian em citações prontas nas suas notas.
+Turn text you read in Obsidian's **Web viewer** into ready-made citations in your notes.
 
-O plugin não abre outro navegador: ele usa o Web viewer que já faz parte do Obsidian.
+The plugin does not open another browser: it uses the Web viewer that is already part of Obsidian.
 
-## O que você ganha
+## What you get
 
-- Copiou um texto no Web viewer? Ao colar na nota, ele vira uma citação formatada.
-- Também dá para citar pelo botão direito, sem precisar copiar e colar.
-- A citação já vem com o link da página, sem data, hora ou texto extra no final.
-- Funciona também no modo leitor do Web viewer.
-- Nenhuma configuração é necessária.
+- Copied some text in the Web viewer? When you paste it into a note, it becomes a formatted citation.
+- You can also cite through the right-click menu, without copying and pasting.
+- The citation already includes the page link, with no date, time, or extra text at the end.
+- It also works in the Web viewer's reader mode.
+- No configuration is required.
 
-## Como usar
+## How to use
 
-### 1. Copiando e colando
+### 1. Copying and pasting
 
-1. Abra a página no Web viewer.
-2. Selecione o texto e pressione `Ctrl+C` (`Cmd+C` no Mac).
-3. Abra a nota, coloque o cursor onde quiser a citação e pressione `Ctrl+V` (`Cmd+V` no Mac).
+1. Open the page in the Web viewer.
+2. Select the text and press `Ctrl+C` (`Cmd+C` on Mac).
+3. Open the note, place the cursor where you want the citation, and press `Ctrl+V` (`Cmd+V` on Mac).
 
-### 2. Pelo botão direito
+### 2. Through the right-click menu
 
-1. Selecione o texto no Web viewer.
-2. Clique com o botão direito.
-3. Escolha **Inserir citação na nota**.
+1. Select the text in the Web viewer.
+2. Right-click.
+3. Choose **Inserir citação na nota**.
 
-A citação é inserida no cursor da última nota em que você estava.
+The citation is inserted at the cursor of the last note you were in.
 
-### 3. Pela paleta de comandos
+### 3. Through the command palette
 
-Procure por:
+Search for:
 
 > **Webview Text Selector: Inserir citação da seleção atual do Web viewer**
 
-Esse comando lê a seleção que está no Web viewer e insere a citação na última nota. Ele pode receber um atalho de teclado, se você preferir.
+This command reads the current selection in the Web viewer and inserts the citation into the last note. You can assign a keyboard shortcut to it if you prefer.
 
-## Como fica a citação
+## What the citation looks like
 
 ```markdown
-> primeira linha do texto
-> segunda linha do texto
+> first line of the text
+> second line of the text
 >
-> [Título da página](<https://exemplo.com/pagina>)
+> [Page title](<https://example.com/page>)
 ```
 
-- Cada linha do texto selecionado recebe um `>`.
-- O link da página fica no final, com o título entre colchetes.
-- Não há data nem hora.
-- Se o cursor estiver no meio de um parágrafo, o plugin ajusta as quebras de linha para a citação ficar organizada.
+- Every line of the selected text gets a `>`.
+- The page link goes at the end, with the title in square brackets.
+- There is no date or time.
+- If the cursor is in the middle of a paragraph, the plugin adjusts the line breaks so the citation stays organized.
 
-## Instalação
+## Installation
 
-### Com o script
+### With the script
 
-No terminal, dentro da pasta do plugin:
+In the terminal, inside the plugin folder:
 
 ```bash
-./install.sh /caminho/do/seu/vault
+./install.sh /path/to/your/vault
 ```
 
-### Manualmente
+### Manually
 
-1. Gere os arquivos com `npm install` e `npm run build`.
-2. Copie `main.js` e `manifest.json` para:
+1. Generate the files with `npm install` and `npm run build`.
+2. Copy `main.js` and `manifest.json` to:
 
    ```
-   <SeuVault>/.obsidian/plugins/webview-text-selector/
+   <YourVault>/.obsidian/plugins/webview-text-selector/
    ```
 
-3. No Obsidian, abra **Configurações → Plugins da comunidade** e ative o **Webview Text Selector**.
+3. In Obsidian, open **Settings → Community plugins** and enable **Webview Text Selector**.
 
-Se você já usava a versão 1.0, pode apagar o arquivo `styles.css` da pasta do plugin: ele não é mais necessário.
+If you were already using version 1.0, you can delete the `styles.css` file from the plugin folder: it is no longer needed.
 
-## Requisitos
+## Requirements
 
-- Obsidian para computador, versão **1.8.0** ou mais recente.
-- O recurso **Web viewer** precisa estar habilitado no Obsidian.
-- Não funciona no Obsidian para celular.
+- Obsidian for desktop, version **1.8.0** or newer.
+- The **Web viewer** feature must be enabled in Obsidian.
+- It does not work on Obsidian for mobile.
 
-## Quando algo não funcionar
+## When something does not work
 
-- **O item do botão direito não aparece:** use o atalho de copiar e colar ou o comando da paleta.
-- **A colagem entrou como texto normal:** alguns sites mudam o texto ao copiar. Nesse caso, o plugin prefere não alterar o que você colou.
-- **O texto estava dentro de uma área incorporada da página:** esse tipo de conteúdo pode não ser reconhecido.
-- **Nenhuma nota está aberta:** abra uma nota em Markdown antes de usar o item do menu.
+- **The right-click item does not appear:** use the copy-and-paste shortcut or the command palette.
+- **The paste came in as plain text:** some sites change the text when copying. In that case, the plugin prefers not to change what you pasted.
+- **The text was inside an embedded area of the page:** this kind of content may not be recognized.
+- **No note is open:** open a Markdown note before using the menu item.
 
-## Privacidade
+## Privacy
 
-O plugin trabalha apenas dentro do Obsidian. O texto copiado não é enviado para nenhum servidor e fica somente no seu computador.
+The plugin works only inside Obsidian. The copied text is not sent to any server and stays only on your computer.
 
-## Como funciona, em resumo
+## How it works, in short
 
-O plugin percebe quando você copia um texto no Web viewer e guarda essa informação. Na hora de colar em uma nota, se o texto for o mesmo, ele monta a citação em vez de colar o texto solto. Fora das notas, a colagem continua funcionando normalmente.
+The plugin notices when you copy text in the Web viewer and remembers it. When you paste into a note, if the text is the same, it builds the citation instead of pasting plain text. Outside notes, pasting continues to work normally.
 
-## Estrutura do projeto
+## Project structure
 
-Para quem quiser entender ou contribuir com o código:
+For anyone who wants to understand or contribute to the code:
 
 ```
 src/
-├── citation/   # formatação, armazenamento e inserção das citações
-├── webviewer/  # integração com o Web viewer do Obsidian
-├── plugin/     # composição geral do plugin
-├── shared/     # tipos e utilidades compartilhadas
-└── main.ts     # ponto de entrada
+├── citation/   # citation formatting, storage, and insertion
+├── webviewer/  # integration with Obsidian's Web viewer
+├── plugin/     # overall plugin composition
+├── shared/     # shared types and utilities
+└── main.ts     # entry point
 ```
 
-O código está comentado para facilitar a leitura.
+The code is commented to make it easier to read.
