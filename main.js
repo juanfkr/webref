@@ -296,6 +296,145 @@ var WebCopyStore = class {
   }
 };
 
+// src/webviewer/WebviewerPatcher.ts
+var WebviewerPatcher = class {
+  /**
+   * @param menuDecorator Decorador do menu de contexto.
+   * @param copyChannel Canal de captura das páginas.
+   */
+  constructor(menuDecorator, copyChannel) {
+    this.menuDecorator = menuDecorator;
+    this.copyChannel = copyChannel;
+    this.active = true;
+    this.patchedViews = /* @__PURE__ */ new WeakSet();
+    this.patches = [];
+    this.connectedWebviews = /* @__PURE__ */ new WeakSet();
+    this.cleanups = /* @__PURE__ */ new Set();
+  }
+  /**
+   * Prepara uma view e conecta o `<webview>` atual.
+   *
+   * @param page Página a preparar.
+   */
+  patch(page) {
+    if (!this.active)
+      return;
+    this.patchViewMethods(page);
+    this.hookWebview(page);
+  }
+  /** Remove listeners e restaura os métodos originais das views. */
+  stop() {
+    this.active = false;
+    for (const cleanup of this.cleanups) {
+      try {
+        cleanup();
+      } catch (e) {
+      }
+    }
+    this.cleanups.clear();
+    for (const patch of this.patches) {
+      try {
+        patch.restore();
+      } catch (e) {
+      }
+    }
+    this.patches = [];
+  }
+  /**
+   * Envolve os métodos internos da view, quando disponíveis.
+   *
+   * @param page Página cujos métodos serão envolvidos.
+   */
+  patchViewMethods(page) {
+    const view = page.view;
+    if (this.patchedViews.has(view))
+      return;
+    this.patchedViews.add(view);
+    const restoreCallbacks = [];
+    if (typeof view.instantiateWebView === "function") {
+      restoreCallbacks.push(
+        this.patchInstantiateWebView(view, page)
+      );
+    }
+    if (typeof view.contextMenuItemsForSelection === "function") {
+      restoreCallbacks.push(
+        this.patchContextMenu(view, page)
+      );
+    }
+    this.patches.push({
+      restore: () => {
+        for (const restore of restoreCallbacks)
+          restore();
+      }
+    });
+  }
+  /**
+   * Garante que webviews recriados pelo Obsidian sejam conectados de novo.
+   *
+   * @param view View interna do Web viewer.
+   * @param page Página correspondente.
+   * @returns Função que restaura o método original.
+   */
+  patchInstantiateWebView(view, page) {
+    const original = view.instantiateWebView;
+    if (!original)
+      return () => void 0;
+    const wrapper = (...args) => {
+      const result = original.apply(view, args);
+      this.hookWebview(page);
+      return result;
+    };
+    view.instantiateWebView = wrapper;
+    return () => {
+      if (view.instantiateWebView === wrapper) {
+        view.instantiateWebView = original;
+      }
+    };
+  }
+  /**
+   * Acrescenta a ação de citação ao menu de contexto nativo.
+   *
+   * @param view View interna do Web viewer.
+   * @param page Página correspondente.
+   * @returns Função que restaura o método original.
+   */
+  patchContextMenu(view, page) {
+    const original = view.contextMenuItemsForSelection;
+    if (!original)
+      return () => void 0;
+    const wrapper = (selectionText, isEditable) => {
+      const items = original.call(view, selectionText, isEditable);
+      return this.menuDecorator.decorate(
+        page,
+        Array.isArray(items) ? items : [],
+        selectionText
+      );
+    };
+    view.contextMenuItemsForSelection = wrapper;
+    return () => {
+      if (view.contextMenuItemsForSelection === wrapper) {
+        view.contextMenuItemsForSelection = original;
+      }
+    };
+  }
+  /**
+   * Conecta o canal de cópia ao `<webview>` atual da página.
+   *
+   * @param page Página cujo webview será conectado.
+   */
+  hookWebview(page) {
+    if (!this.active)
+      return;
+    const webview = page.webview;
+    if (!webview)
+      return;
+    if (this.connectedWebviews.has(webview))
+      return;
+    this.connectedWebviews.add(webview);
+    this.cleanups.add(this.copyChannel.connect(webview));
+  }
+};
+
 // src/webviewer/constants.ts
 var WEBVIEWER_VIEW_TYPE = "webviewer";
 var COPY_MARKER = "[[WEBVIEW_TEXT_SELECTOR_COPY]]";
@@ -422,53 +561,14 @@ var WebviewerPage = class {
   }
 };
 
-// src/webviewer/NativeWebviewerService.ts
-var NativeWebviewerService = class {
+// src/webviewer/WebviewerRegistry.ts
+var WebviewerRegistry = class {
   /**
    * @param app Aplicativo do Obsidian.
-   * @param store Armazenamento da última cópia.
-   * @param menuDecorator Decorador do menu de contexto.
-   * @param copyChannel Canal de captura das páginas.
    */
-  constructor(app, store, menuDecorator, copyChannel) {
+  constructor(app) {
     this.app = app;
-    this.store = store;
-    this.menuDecorator = menuDecorator;
-    this.copyChannel = copyChannel;
-    this.active = true;
     this.observer = null;
-    this.patchedViews = /* @__PURE__ */ new WeakSet();
-    this.patches = [];
-    this.connectedWebviews = /* @__PURE__ */ new WeakSet();
-    this.cleanups = /* @__PURE__ */ new Set();
-    this.lastPage = null;
-  }
-  /** Inicia o monitoramento dos Web viewers abertos. */
-  start() {
-    this.active = true;
-    this.scan();
-    this.observe();
-  }
-  /** Remove listeners, observers e patches aplicados às views. */
-  stop() {
-    var _a;
-    this.active = false;
-    (_a = this.observer) == null ? void 0 : _a.disconnect();
-    this.observer = null;
-    for (const cleanup of this.cleanups) {
-      try {
-        cleanup();
-      } catch (e) {
-      }
-    }
-    this.cleanups.clear();
-    for (const patch of this.patches) {
-      try {
-        patch.restore();
-      } catch (e) {
-      }
-    }
-    this.patches = [];
     this.lastPage = null;
   }
   /**
@@ -485,18 +585,30 @@ var NativeWebviewerService = class {
     }
   }
   /**
+   * Lista todas as views do Web viewer abertas.
+   *
+   * @returns Uma página encapsulada para cada view encontrada.
+   */
+  findAll() {
+    const pages = [];
+    for (const leaf of this.app.workspace.getLeavesOfType(
+      WEBVIEWER_VIEW_TYPE
+    )) {
+      const view = leaf.view;
+      if (view)
+        pages.push(new WebviewerPage(view));
+    }
+    return pages;
+  }
+  /**
    * Retorna o Web viewer ativo ou o último utilizado.
    *
    * @returns A página encontrada ou `null` quando não há Web viewer aberto.
    */
   getCurrentPage() {
-    var _a;
-    const active = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
-    if ((active == null ? void 0 : active.getViewType()) === WEBVIEWER_VIEW_TYPE) {
-      return new WebviewerPage(
-        active
-      );
-    }
+    const active = this.getActivePage();
+    if (active)
+      return active;
     const leaves = this.app.workspace.getLeavesOfType(
       WEBVIEWER_VIEW_TYPE
     );
@@ -509,47 +621,10 @@ var NativeWebviewerService = class {
     ) : null;
   }
   /**
-   * Encontra e prepara todas as views do Web viewer abertas.
+   * Retorna a página somente quando o Web viewer está realmente ativo.
    *
-   * Pode ser chamado quantas vezes for necessário; views já preparadas são
-   * apenas verificadas novamente.
+   * @returns A página ativa ou `null`.
    */
-  scan() {
-    if (!this.active)
-      return;
-    for (const leaf of this.app.workspace.getLeavesOfType(
-      WEBVIEWER_VIEW_TYPE
-    )) {
-      const view = leaf.view;
-      if (!view)
-        continue;
-      this.patchView(new WebviewerPage(view));
-    }
-  }
-  /**
-   * Trata cópias feitas no documento do Obsidian.
-   *
-   * Fora do modo leitor, qualquer cópia no aplicativo invalida a captura
-   * anterior. No modo leitor a seleção fica no documento do Obsidian, então
-   * ela é registrada aqui.
-   */
-  handleHostCopy() {
-    var _a, _b;
-    if (!this.active)
-      return;
-    const page = this.getActivePage();
-    if (!page || !page.isReaderMode) {
-      this.store.clear();
-      return;
-    }
-    const text = (_b = (_a = document.getSelection()) == null ? void 0 : _a.toString()) != null ? _b : "";
-    if (!text.trim()) {
-      this.store.clear();
-      return;
-    }
-    this.store.remember(page.capture(text));
-  }
-  /** Retorna a página somente quando o Web viewer está realmente ativo. */
   getActivePage() {
     var _a;
     const view = (_a = this.app.workspace.activeLeaf) == null ? void 0 : _a.view;
@@ -564,21 +639,21 @@ var NativeWebviewerService = class {
    *
    * O observer cobre os casos em que uma view é montada sem uma mudança de
    * layout perceptível. Os eventos do workspace continuam sendo usados como
-   * reforço.
+   * reforço pelo serviço principal.
+   *
+   * @param onWebviewAdded Chamada quando um novo `<webview>` é inserido.
    */
-  observe() {
+  observe(onWebviewAdded) {
     if (this.observer || !document.body)
       return;
     this.observer = new MutationObserver((mutations) => {
       var _a;
-      if (!this.active)
-        return;
       for (const mutation of mutations) {
         for (const node of Array.from(mutation.addedNodes)) {
           if (!(node instanceof HTMLElement))
             continue;
           if (node.tagName === "WEBVIEW" || ((_a = node.querySelector) == null ? void 0 : _a.call(node, "webview"))) {
-            this.scan();
+            onWebviewAdded();
             return;
           }
         }
@@ -589,71 +664,85 @@ var NativeWebviewerService = class {
       subtree: true
     });
   }
+  /** Interrompe a observação do documento. */
+  stop() {
+    var _a;
+    (_a = this.observer) == null ? void 0 : _a.disconnect();
+    this.observer = null;
+    this.lastPage = null;
+  }
+};
+
+// src/webviewer/NativeWebviewerService.ts
+var NativeWebviewerService = class {
   /**
-   * Envolve os métodos internos da view e conecta o webview atual.
-   *
-   * @param page Página a preparar.
+   * @param app Aplicativo do Obsidian.
+   * @param store Armazenamento da última cópia.
+   * @param menuDecorator Decorador do menu de contexto.
+   * @param copyChannel Canal de captura das páginas.
    */
-  patchView(page) {
-    const view = page.view;
-    if (!this.patchedViews.has(view)) {
-      this.patchedViews.add(view);
-      const restoreCallbacks = [];
-      if (typeof view.instantiateWebView === "function") {
-        const original = view.instantiateWebView;
-        const wrapper = (...args) => {
-          const result = original.apply(view, args);
-          this.hookWebview(page);
-          return result;
-        };
-        view.instantiateWebView = wrapper;
-        restoreCallbacks.push(() => {
-          if (view.instantiateWebView === wrapper) {
-            view.instantiateWebView = original;
-          }
-        });
-      }
-      if (typeof view.contextMenuItemsForSelection === "function") {
-        const original = view.contextMenuItemsForSelection;
-        const wrapper = (selectionText, isEditable) => {
-          const items = original.call(view, selectionText, isEditable);
-          return this.menuDecorator.decorate(
-            page,
-            Array.isArray(items) ? items : [],
-            selectionText
-          );
-        };
-        view.contextMenuItemsForSelection = wrapper;
-        restoreCallbacks.push(() => {
-          if (view.contextMenuItemsForSelection === wrapper) {
-            view.contextMenuItemsForSelection = original;
-          }
-        });
-      }
-      this.patches.push({
-        restore: () => {
-          for (const restore of restoreCallbacks)
-            restore();
-        }
-      });
-    }
-    this.hookWebview(page);
+  constructor(app, store, menuDecorator, copyChannel) {
+    this.store = store;
+    this.registry = new WebviewerRegistry(app);
+    this.patcher = new WebviewerPatcher(menuDecorator, copyChannel);
+  }
+  /** Inicia o monitoramento dos Web viewers abertos. */
+  start() {
+    this.scan();
+    this.registry.observe(() => this.scan());
+  }
+  /** Remove listeners, observers e patches aplicados às views. */
+  stop() {
+    this.registry.stop();
+    this.patcher.stop();
   }
   /**
-   * Conecta o canal de cópia ao `<webview>` atual da página.
+   * Lembra a última view do Web viewer que recebeu o foco.
    *
-   * @param page Página cujo webview será conectado.
+   * @param leaf Leaf ativa no momento.
    */
-  hookWebview(page) {
-    if (!this.active)
+  trackLeaf(leaf) {
+    this.registry.trackLeaf(leaf);
+  }
+  /**
+   * Retorna o Web viewer ativo ou o último utilizado.
+   *
+   * @returns A página encontrada ou `null` quando não há Web viewer aberto.
+   */
+  getCurrentPage() {
+    return this.registry.getCurrentPage();
+  }
+  /**
+   * Encontra e prepara todas as views do Web viewer abertas.
+   *
+   * Pode ser chamado quantas vezes for necessário; views já preparadas são
+   * apenas verificadas novamente.
+   */
+  scan() {
+    for (const page of this.registry.findAll()) {
+      this.patcher.patch(page);
+    }
+  }
+  /**
+   * Trata cópias feitas no documento do Obsidian.
+   *
+   * Fora do modo leitor, qualquer cópia no aplicativo invalida a captura
+   * anterior. No modo leitor a seleção fica no documento do Obsidian, então
+   * ela é registrada aqui.
+   */
+  handleHostCopy() {
+    var _a, _b;
+    const page = this.registry.getActivePage();
+    if (!page || !page.isReaderMode) {
+      this.store.clear();
       return;
-    const webview = page.webview;
-    if (!webview)
+    }
+    const text = (_b = (_a = document.getSelection()) == null ? void 0 : _a.toString()) != null ? _b : "";
+    if (!text.trim()) {
+      this.store.clear();
       return;
-    if (this.connectedWebviews.has(webview))
-      return;
-    this.connectedWebviews.add(webview);
-    this.cleanups.add(this.copyChannel.connect(webview));
+    }
+    this.store.remember(page.capture(text));
   }
 };
 
